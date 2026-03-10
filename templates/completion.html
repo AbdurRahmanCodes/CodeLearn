@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Session Complete — CodeLearn Research{% endblock %}
+{% block nav_home %}{% endblock %}
+
+{% block content %}
+<div class="completion-page">
+    <div class="completion-card">
+        <div class="completion-icon">
+            <i data-lucide="check-circle-2"></i>
+        </div>
+
+        <h2 style="margin-bottom:.5rem;">Thank you for participating!</h2>
+        <p style="margin-bottom:1.5rem;font-size:.9rem;">
+            Your anonymous session data has been recorded for the COM748 programming learning study.
+            Your contribution matters to this research.
+        </p>
+
+        <!-- Mode badge -->
+        <div style="margin-bottom:1.5rem;">
+            <span
+                class="mode-pill {% if stats.group_type == 'static' %}mode-pill--static{% else %}mode-pill--interactive{% endif %}">
+                {{ stats.group_type | capitalize }} Mode
+            </span>
+        </div>
+
+        <!-- Completion rate bar -->
+        <div style="text-align:left;margin-bottom:.5rem;font-size:.78rem;font-weight:600;color:var(--text-muted);">
+            Completion rate
+        </div>
+        <div class="completion-rate-bar">
+            <div class="completion-rate-bar__fill" style="width:{{ stats.completion_rate }}%"></div>
+        </div>
+        <div style="font-size:.78rem;color:var(--primary);font-weight:700;text-align:right;margin-bottom:1rem;">
+            {{ stats.completion_rate }}% complete
+        </div>
+
+        <!-- Stats grid -->
+        <div class="completion-stats">
+            <div class="completion-stat">
+                <div class="completion-stat__val">{{ stats.exercises_attempted }}</div>
+                <div class="completion-stat__lbl">Exercises attempted</div>
+            </div>
+            <div class="completion-stat">
+                <div class="completion-stat__val">{{ stats.exercises_passed }}</div>
+                <div class="completion-stat__lbl">Exercises passed</div>
+            </div>
+            <div class="completion-stat">
+                <div class="completion-stat__val">{{ stats.total_attempts }}</div>
+                <div class="completion-stat__lbl">Total submissions</div>
+            </div>
+            <div class="completion-stat">
+                <div class="completion-stat__val">{{ stats.duration_min }}<small
+                        style="font-size:1rem;margin-left:2px;">min</small></div>
+                <div class="completion-stat__lbl">Session duration</div>
+            </div>
+        </div>
+
+        <div style="border-top:1px solid var(--border);padding-top:1.25rem;margin-top:.5rem;">
+            <p style="font-size:.8rem;color:var(--text-muted);margin-bottom:1.25rem;">
+                All data is stored anonymously. No personal information has been collected.
+                This session is now complete.
+            </p>
+            <a href="{{ url_for('index') }}" class="btn btn--primary" style="width:100%;justify-content:center;">
+                <i data-lucide="home"></i> Return to Home
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

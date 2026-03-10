@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block title %}Interactive Mode — Ex {{ exercise_index + 1 }}: {{ exercise.title }} | CodeLearn{% endblock %}
+{% block nav_home %}{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/theme/dracula.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/codemirror.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/mode/python/python.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/addon/edit/closebrackets.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/addon/edit/matchbrackets.min.js" defer></script>
+{% endblock %}
+
+{% block nav_exercise_links %}
+<a href="{{ url_for('interactive_mode') }}" class="nav-link active">
+    <i data-lucide="layout-grid"></i> Exercises
+</a>
+{% endblock %}
+
+{% block nav_progress %}
+{% if progress %}
+<div class="nav-progress">
+    <div class="nav-progress__bar">
+        <div class="nav-progress__fill" style="width:{{ (progress.passed / 7 * 100)|round|int }}%"></div>
+    </div>
+    {{ progress.passed }}/7 passed
+</div>
+{% endif %}
+{% endblock %}
+
+{% block nav_mode_pill %}
+<span class="mode-pill mode-pill--interactive">Interactive</span>
+{% endblock %}
+
+{% block content %}
+<main class="page">
+    <div class="container">
+
+        <!-- Progress Strip -->
+        <div class="progress-strip">
+            <span class="progress-strip__label">Exercise {{ exercise_index + 1 }} of {{ total }}</span>
+            <div class="progress-bar">
+                <div class="progress-bar__fill" style="width:{{ ((exercise_index + 1) / total * 100)|round|int }}%">
+                </div>
+            </div>
+            <span class="progress-strip__label">{{ ((exercise_index + 1) / total * 100)|round|int }}%</span>
+        </div>
+
+        <div class="page__layout">
+
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <div class="sidebar__label">Exercises</div>
+                <ul class="ex-list">
+                    {% for ex in exercises %}
+                    <li class="ex-list__item {% if ex.id == exercise.id %}active{% endif %}">
+                        <a href="{{ url_for('interactive_mode', ex=loop.index0) }}">
+                            <span class="ex-list__num">{{ loop.index }}</span>
+                            {{ ex.title }}
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+                <div class="sidebar__tip">
+                    <i data-lucide="keyboard" style="width:13px;height:13px;float:left;margin:2px 6px 0 0;"></i>
+                    Press <kbd>Ctrl+Enter</kbd> to run code.<br>
+                    <strong>Unlimited attempts</strong> — read the feedback carefully.
+                </div>
+            </aside>
+
+            <!-- Main -->
+            <div>
+                <div class="card">
+                    <div class="card__header">
+                        <div class="card__header-left">
+                            <div class="card__title">
+                                <span class="tag tag--primary">Interactive</span>
+                                <h2 style="font-size:1.05rem;color:var(--text);">Exercise {{ exercise_index + 1 }}: {{
+                                    exercise.title }}</h2>
+                            </div>
+                            <p class="card__header-hint">Read the concept, write your code, and get detailed feedback on
+                                each attempt.</p>
+                        </div>
+                    </div>
+
+                    <div class="card__body">
+                        <!-- Concept Explanation -->
+                        <div class="explanation">
+                            <div class="explanation__label"><i data-lucide="book-open"></i> Concept Explanation</div>
+                            <div class="md-content">{{ exercise.explanation | md | safe }}</div>
+                        </div>
+
+                        <!-- Task -->
+                        <div class="card__section">
+                            <div class="exercise-desc">
+                                <div class="exercise-desc__label"><i data-lucide="clipboard-list"></i> Your Task</div>
+                                <p>{{ exercise.description }}</p>
+                                <div class="example-box">{{ exercise.example }}</div>
+                            </div>
+                        </div>
+
+                        <!-- Editor -->
+                        <div class="card__section">
+                            <form id="submit-form" method="POST" action="{{ url_for('submit') }}">
+                                <input type="hidden" name="exercise_id" value="{{ exercise.id }}">
+                                <input type="hidden" name="exercise_index" value="{{ exercise_index }}">
+
+                                <div
+                                    style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.625rem;">
+                                    <h4
+                                        style="color:var(--text-muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;">
+                                        Your Python Code</h4>
+                                    <button type="button" id="reset-btn" class="btn btn--secondary btn--sm">
+                                        <i data-lucide="rotate-ccw"></i> Reset
+                                    </button>
+                                </div>
+
+                                <div class="editor-wrap">
+                                    <div class="editor-toolbar">
+                                        <span class="editor-dot dot-red"></span>
+                                        <span class="editor-dot dot-yellow"></span>
+                                        <span class="editor-dot dot-green"></span>
+                                        <span class="editor-filename">{{ exercise.id }}.py</span>
+                                        <span class="editor-badge">Python 3</span>
+                                    </div>
+                                    <textarea id="code-editor" name="code" data-starter="{{ exercise.starter_code }}"
+                                        style="display:none;">{% if submitted_code %}{{ submitted_code }}{% else %}{{ exercise.starter_code }}{% endif %}</textarea>
+                                </div>
+
+                                <div class="form-actions">
+                                    <button type="submit" id="run-btn" class="btn btn--primary">
+                                        <i data-lucide="play"></i> Run Code
+                                    </button>
+                                    <span class="form-hint"><kbd>Ctrl+Enter</kbd> to run · Unlimited attempts</span>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Detailed Feedback -->
+                        {% if feedback %}
+                        <div id="feedback-panel"
+                            class="feedback {% if feedback.passed %}feedback--pass{% else %}feedback--fail{% endif %}">
+                            <div class="feedback__header">
+                                <span class="feedback__icon">
+                                    {% if feedback.passed %}
+                                    <i data-lucide="check-circle-2"></i>
+                                    {% else %}
+                                    <i data-lucide="x-circle"></i>
+                                    {% endif %}
+                                </span>
+                                {{ feedback.message }}
+                            </div>
+
+                            {% if not feedback.passed and feedback.error_type %}
+                            <div class="error-type-pill">
+                                <i data-lucide="alert-triangle" style="width:12px;height:12px;"></i>
+                                {% if feedback.error_type == 'syntax' %}Syntax Error — Check colons, quotes, and
+                                brackets.
+                                {% elif feedback.error_type == 'runtime' %}Runtime Error — Check variable names and data
+                                types.
+                                {% elif feedback.error_type == 'timeout' %}Timeout — Possible infinite loop. Check your
+                                loop condition.
+                                {% elif feedback.error_type == 'logic' %}Logic Error — Code ran but produced wrong
+                                output.
+                                {% endif %}
+                            </div>
+                            {% endif %}
+
+                            {% if feedback.details %}
+                            <div class="test-results">
+                                {% for d in feedback.details %}
+                                <div
+                                    class="test-result {% if d.passed %}test-result--pass{% else %}test-result--fail{% endif %}">
+                                    <div class="test-result__header">
+                                        {% if d.passed %}<i data-lucide="check" style="width:13px;height:13px;"></i>{%
+                                        else %}<i data-lucide="x" style="width:13px;height:13px;"></i>{% endif %}
+                                        {{ d.test }}
+                                    </div>
+                                    <pre class="test-result__detail">{{ d.message }}</pre>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+
+                            {% if feedback.passed %}
+                            <p class="feedback__submsg" style="margin-top:.75rem;">
+                                All test cases passed! Move to the next exercise when ready.
+                            </p>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+
+                    </div>
+                </div>
+
+                <!-- Navigation arrows -->
+                <div class="nav-arrows">
+                    {% if exercise_index > 0 %}
+                    <a href="{{ url_for('interactive_mode', ex=exercise_index - 1) }}"
+                        class="btn btn--secondary btn--sm">
+                        <i data-lucide="arrow-left"></i> Previous
+                    </a>
+                    {% else %}<span></span>{% endif %}
+                    {% if exercise_index < total - 1 %} <a
+                        href="{{ url_for('interactive_mode', ex=exercise_index + 1) }}"
+                        class="btn btn--secondary btn--sm">
+                        Next <i data-lucide="arrow-right"></i>
+                        </a>
+                        {% else %}
+                        <a href="{{ url_for('session_complete') }}" class="btn btn--primary btn--sm">
+                            <i data-lucide="flag"></i> View Session Summary
+                        </a>
+                        {% endif %}
+                </div>
+            </div>
+
+        </div>
+    </div>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='script.js') }}" defer></script>
+{% endblock %}

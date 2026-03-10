@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block title %}Research Information — CodeLearn{% endblock %}
+{% block nav_info %}active{% endblock %}
+
+{% block content %}
+
+<!-- Research Info Hero -->
+<div class="info-hero">
+    <div class="info-hero__inner">
+        <div class="info-hero__eyebrow"><i data-lucide="flask-conical"></i> COM748 Masters Research Project</div>
+        <h1 style="font-size:clamp(1.45rem,3vw,2rem);margin-bottom:.75rem;">About This Research Study</h1>
+        <p style="font-size:.95rem;color:var(--text-secondary);margin:0;max-width:620px;">
+            This platform is part of an academic dissertation investigating how automated feedback
+            affects beginner programming skill development. Your participation directly contributes
+            to evidence-based research in programming education.
+        </p>
+    </div>
+</div>
+
+<!-- Main Info Content -->
+<div class="info-page">
+    <div class="container container--narrow">
+
+        <div class="info-grid">
+
+            <div class="info-section info-section--purple">
+                <div class="info-section__title">
+                    <i data-lucide="target"></i> Research Objective
+                </div>
+                <p>
+                    This study investigates whether immediate, automated feedback accelerates beginner
+                    programming skill development compared to traditional minimal-feedback environments.
+                    The central question is: does feedback quality affect learning speed and problem-solving
+                    persistence in novice programmers?
+                </p>
+            </div>
+
+            <div class="info-section info-section--teal">
+                <div class="info-section__title">
+                    <i data-lucide="git-branch"></i> Study Design
+                </div>
+                <p>Two conditions are compared in this controlled study:</p>
+                <ul>
+                    <li style="margin-top:.5rem;"><strong>Static Mode (Control)</strong> — minimal binary feedback
+                        (Correct / Incorrect only)</li>
+                    <li style="margin-top:.4rem;"><strong>Interactive Mode (Experimental)</strong> — detailed, automated
+                        error feedback and concept explanations</li>
+                </ul>
+                <p style="margin-top:.625rem;">
+                    Participants self-select their preferred mode. This is intentional, allowing the
+                    research to observe self-selection behaviour alongside performance differences.
+                </p>
+            </div>
+
+            <div class="info-section info-section--success">
+                <div class="info-section__title">
+                    <i data-lucide="shield"></i> Privacy and Anonymity
+                </div>
+                <ul>
+                    <li>No personal information is collected at any point</li>
+                    <li>Every session is identified by a randomly generated ID</li>
+                    <li>No names, emails, or device identifiers are stored</li>
+                    <li>Data is stored on MongoDB Atlas (EU cloud region)</li>
+                    <li>Participation can end at any time by closing the browser</li>
+                    <li>Study falls under Category Z ethics (no formal consent form required)</li>
+                </ul>
+            </div>
+
+            <div class="info-section info-section--warning">
+                <div class="info-section__title">
+                    <i data-lucide="book-open"></i> Exercise Overview
+                </div>
+                <p>Seven beginner Python exercises of gradually increasing complexity:</p>
+                <table class="data-table" style="margin-top:.75rem;">
+                    <tr>
+                        <td>EX01</td>
+                        <td>Variables and data assignment</td>
+                    </tr>
+                    <tr>
+                        <td>EX02</td>
+                        <td>Arithmetic operators</td>
+                    </tr>
+                    <tr>
+                        <td>EX03</td>
+                        <td>String methods</td>
+                    </tr>
+                    <tr>
+                        <td>EX04</td>
+                        <td>Conditional logic (if / elif / else)</td>
+                    </tr>
+                    <tr>
+                        <td>EX05</td>
+                        <td>While loops and iteration</td>
+                    </tr>
+                    <tr>
+                        <td>EX06</td>
+                        <td>For loops and lists</td>
+                    </tr>
+                    <tr>
+                        <td>EX07</td>
+                        <td>Functions (capstone task)</td>
+                    </tr>
+                </table>
+                <p style="margin-top:.625rem;font-size:.8rem;color:var(--text-muted);">
+                    No prior programming experience required. Estimated time: 20 to 40 minutes.
+                </p>
+            </div>
+
+            <div class="info-section info-section--error">
+                <div class="info-section__title">
+                    <i data-lucide="activity"></i> Data Collected Per Attempt
+                </div>
+                <p>Each code submission records exactly these fields:</p>
+                <table class="data-table" style="margin-top:.625rem;">
+                    <tr>
+                        <td>session_id</td>
+                        <td>Randomly generated anonymous identifier</td>
+                    </tr>
+                    <tr>
+                        <td>group_type</td>
+                        <td>static or interactive</td>
+                    </tr>
+                    <tr>
+                        <td>exercise_id</td>
+                        <td>Which exercise was attempted</td>
+                    </tr>
+                    <tr>
+                        <td>attempt_number</td>
+                        <td>Attempt count within session</td>
+                    </tr>
+                    <tr>
+                        <td>result</td>
+                        <td>pass or fail</td>
+                    </tr>
+                    <tr>
+                        <td>error_type</td>
+                        <td>Syntax, runtime, logic, or timeout</td>
+                    </tr>
+                    <tr>
+                        <td>execution_time_ms</td>
+                        <td>Code run duration in milliseconds</td>
+                    </tr>
+                    <tr>
+                        <td>timestamp</td>
+                        <td>UTC timestamp of each submission</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="info-section info-section--purple">
+                <div class="info-section__title">
+                    <i data-lucide="bar-chart-2"></i> How Data is Used
+                </div>
+                <p>
+                    Anonymised attempt data is analysed to compute research metrics including pass rate
+                    comparisons, time-to-first-pass, persistence index, and error transition patterns.
+                    All findings are reported in aggregate form only. No individual session is ever
+                    identified or singled out in the research output.
+                </p>
+                <p style="margin-top:.625rem;">
+                    Data may be included in the dissertation submission and may accompany future
+                    academic publications, always in anonymised aggregate form.
+                </p>
+            </div>
+
+        </div>
+
+        <!-- CTA bar -->
+        <div class="info-cta-bar">
+            <h3>Ready to participate?</h3>
+            <p>Return to the platform and choose your learning mode to begin. The session takes 20 to 40 minutes.</p>
+            <a href="{{ url_for('index') }}" class="btn btn--white">
+                <i data-lucide="arrow-left"></i> Back to Platform
+            </a>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

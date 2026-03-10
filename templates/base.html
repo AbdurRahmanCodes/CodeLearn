@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}CodeLearn Research{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    {% block head %}{% endblock %}
+</head>
+
+<body>
+
+    <nav class="navbar">
+        <div class="navbar__inner">
+            <!-- Brand -->
+            <a href="{{ url_for('index') }}" class="navbar__brand">
+                <div class="brand-logo"><i data-lucide="code-2"></i></div>
+                <div>
+                    <div class="brand-name">CodeLearn</div>
+                    <div class="brand-sub">Research Platform</div>
+                </div>
+            </a>
+
+            <!-- Navigation links -->
+            <div class="navbar__links">
+                <a href="{{ url_for('index') }}" class="nav-link {% block nav_home %}{% endblock %}">
+                    <i data-lucide="home"></i> Home
+                </a>
+                <a href="{{ url_for('research_info') }}" class="nav-link {% block nav_info %}{% endblock %}">
+                    <i data-lucide="info"></i> Research Info
+                </a>
+                {% block nav_exercise_links %}{% endblock %}
+            </div>
+
+            <!-- Right side -->
+            <div class="navbar__right">
+                {% block nav_progress %}{% endblock %}
+                {% block nav_mode_pill %}{% endblock %}
+
+                {% if session.get('admin_logged_in') %}
+                <a href="{{ url_for('admin_dashboard') }}"
+                    class="nav-link nav-link--admin {% block nav_admin %}{% endblock %}">
+                    <i data-lucide="bar-chart-2"></i> Dashboard
+                </a>
+                <a href="{{ url_for('admin_logout') }}" class="btn btn--ghost btn--sm">
+                    <i data-lucide="log-out"></i> Sign Out
+                </a>
+                {% else %}
+                <a href="{{ url_for('admin_login') }}" class="nav-link nav-link--muted"
+                    title="Researcher access — admin login">
+                    <i data-lucide="lock"></i> Admin
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    {% block content %}{% endblock %}
+
+    <footer class="footer">
+        COM748 Masters Research Project &nbsp;·&nbsp;
+        <a href="{{ url_for('research_info') }}">About the Study</a> &nbsp;·&nbsp;
+        <a href="{{ url_for('db_status') }}">DB Status</a>
+        {% if session.get('admin_logged_in') %}
+        &nbsp;·&nbsp; <a href="{{ url_for('export_research_dataset') }}">Export Dataset</a>
+        &nbsp;·&nbsp; <a href="{{ url_for('export_session_summary') }}">Session Summary</a>
+        {% endif %}
+    </footer>
+
+    {% block scripts %}{% endblock %}
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script>if (typeof lucide !== 'undefined') lucide.createIcons();</script>
+</body>
+
+</html>

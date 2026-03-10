@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% block title %}Analytics Dashboard — COM748 Research Platform{% endblock %}
+{% block nav_admin %}active{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<main class="dash-page">
+    <div class="container">
+
+        <!-- Header -->
+        <div class="dash-header">
+            <h1>Research Analytics Dashboard</h1>
+            <p>Real-time participant interaction data from MongoDB Atlas.</p>
+            <div class="dash-header__meta">
+                <div class="dash-meta-pill"><span class="dot-live"></span> Live Data</div>
+                <span id="last-refresh" style="font-size:.74rem;color:var(--text-muted);">Loading…</span>
+                <button id="refresh-btn" class="btn btn--secondary btn--sm">
+                    <i data-lucide="refresh-cw"></i> Refresh
+                </button>
+                <a href="{{ url_for('admin_logout') }}" class="btn btn--secondary btn--sm">
+                    <i data-lucide="log-out"></i> Sign Out
+                </a>
+            </div>
+        </div>
+
+        <!-- DB Error Banner -->
+        <div id="db-error-banner" class="db-error-banner"></div>
+
+        <!-- Stat Cards -->
+        <div class="stats-grid">
+            <div class="stat-card stat-card--primary">
+                <div class="stat-card__icon"><i data-lucide="users"></i></div>
+                <div class="stat-card__value skeleton skeleton-text" id="stat-participants">—</div>
+                <p class="stat-card__label">Total Participants</p>
+            </div>
+            <div class="stat-card stat-card--warning">
+                <div class="stat-card__icon warning"><i data-lucide="file-text"></i></div>
+                <div class="stat-card__value skeleton skeleton-text" id="stat-static">—</div>
+                <p class="stat-card__label">Static Group</p>
+            </div>
+            <div class="stat-card stat-card--accent">
+                <div class="stat-card__icon accent"><i data-lucide="zap"></i></div>
+                <div class="stat-card__value skeleton skeleton-text" id="stat-interactive">—</div>
+                <p class="stat-card__label">Interactive Group</p>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card__icon"><i data-lucide="send"></i></div>
+                <div class="stat-card__value skeleton skeleton-text" id="stat-attempts">—</div>
+                <p class="stat-card__label">Total Attempts</p>
+            </div>
+            <div class="stat-card stat-card--success">
+                <div class="stat-card__icon success"><i data-lucide="check-circle"></i></div>
+                <div class="stat-card__value skeleton skeleton-text" id="stat-passrate">—</div>
+                <p class="stat-card__label">Overall Pass Rate</p>
+            </div>
+            <div class="stat-card stat-card--teal">
+                <div class="stat-card__icon accent"><i data-lucide="shield-check"></i></div>
+                <div class="stat-card__value skeleton skeleton-text" id="stat-valid">—</div>
+                <p class="stat-card__label">Valid Sessions</p>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="dash-tabs">
+            <button class="dash-tab active" data-tab="overview">
+                <i data-lucide="bar-chart-2"></i> Overview
+            </button>
+            <button class="dash-tab" data-tab="insights">
+                <i data-lucide="flask-conical"></i> Research Insights
+            </button>
+        </div>
+
+        <!-- ── TAB 1: Overview ── -->
+        <div class="tab-pane active" id="tab-overview">
+
+            <div class="charts-grid" style="margin-bottom:1.25rem;">
+                <div class="chart-card">
+                    <div class="chart-card__header">
+                        <span class="chart-card__badge">Bar</span>
+                        <div class="chart-card__title"><i data-lucide="bar-chart-2"></i> Pass Rate by Learning Mode
+                        </div>
+                        <div class="chart-card__subtitle">% of submissions resulting in a pass — compares Static vs
+                            Interactive group performance</div>
+                    </div>
+                    <div class="chart-wrap"><canvas id="chart-pass-rate"></canvas></div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-card__header">
+                        <span class="chart-card__badge">Doughnut</span>
+                        <div class="chart-card__title"><i data-lucide="pie-chart"></i> Error Type Distribution</div>
+                        <div class="chart-card__subtitle">All failed attempts classified by error category — identifies
+                            dominant error patterns</div>
+                    </div>
+                    <div class="chart-wrap"><canvas id="chart-errors"></canvas></div>
+                </div>
+            </div>
+
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <div class="chart-card__header">
+                        <span class="chart-card__badge">Line</span>
+                        <div class="chart-card__title"><i data-lucide="trending-up"></i> Average Attempts per Exercise
+                        </div>
+                        <div class="chart-card__subtitle">Mean submissions per exercise by group — higher values
+                            indicate greater difficulty or engagement</div>
+                    </div>
+                    <div class="chart-wrap chart-wrap--tall"><canvas id="chart-attempts"></canvas></div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-card__header">
+                        <span class="chart-card__badge">Grouped Bar</span>
+                        <div class="chart-card__title"><i data-lucide="activity"></i> Learning Curve Analysis</div>
+                        <div class="chart-card__subtitle">Avg attempts to achieve first pass per exercise — measures
+                            cognitive difficulty progression</div>
+                    </div>
+                    <div class="chart-wrap chart-wrap--tall"><canvas id="chart-learning"></canvas></div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ── TAB 2: Research Insights ── -->
+        <div class="tab-pane" id="tab-insights">
+            <div class="insight-title">Research Insight Metrics — Valid Sessions Only (criteria: &gt;1 attempt, &gt;10s
+                duration)</div>
+
+            <div class="charts-grid" style="margin-bottom:1.25rem;">
+                <div class="chart-card">
+                    <div class="chart-card__header">
+                        <span class="chart-card__badge">Grouped Bar</span>
+                        <div class="chart-card__title"><i data-lucide="clock"></i> Time-to-First-Pass</div>
+                        <div class="chart-card__subtitle">Average seconds from first attempt to first pass per exercise
+                            — cognitive efficiency indicator (Romero &amp; Ventura, 2007)</div>
+                    </div>
+                    <div class="chart-wrap chart-wrap--tall"><canvas id="chart-time-to-pass"></canvas></div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-card__header">
+                        <span class="chart-card__badge">Grouped Bar</span>
+                        <div class="chart-card__title"><i data-lucide="repeat"></i> Persistence Index</div>
+                        <div class="chart-card__subtitle">Avg attempts on exercises never passed — measures frustration
+                            tolerance and engagement resilience</div>
+                    </div>
+                    <div class="chart-wrap chart-wrap--tall"><canvas id="chart-persistence"></canvas></div>
+                </div>
+            </div>
+
+            <div class="charts-grid" style="margin-bottom:1.25rem;">
+                <div class="chart-card chart-card--wide">
+                    <div class="chart-card__header">
+                        <span class="chart-card__badge">Horizontal Bar</span>
+                        <div class="chart-card__title"><i data-lucide="git-branch"></i> Error Transition Analysis</div>
+                        <div class="chart-card__subtitle">Most frequent sequential error-type progressions (e.g. Syntax
+                            → Runtime → Pass) — Educational Data Mining method</div>
+                    </div>
+                    <div class="chart-wrap chart-wrap--tall"><canvas id="chart-transitions"></canvas></div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Footer -->
+        <div class="dash-footer">
+            <span style="font-size:.74rem;color:var(--text-muted);">
+                COM748 Research Platform v1.3 · <code>programming_research.attempts</code>
+            </span>
+            <div class="dash-footer__links">
+                <a href="{{ url_for('export_research_dataset') }}" class="dash-footer__link"
+                    download="com748_research_dataset.csv">
+                    <i data-lucide="download"></i> Full Dataset CSV
+                </a>
+                <a href="{{ url_for('export_session_summary') }}" class="dash-footer__link"
+                    download="com748_session_summary.csv">
+                    <i data-lucide="download"></i> Session Summary CSV
+                </a>
+                <a href="{{ url_for('db_status') }}" class="dash-footer__link">DB Status</a>
+                <a href="{{ url_for('index') }}" class="dash-footer__link">← Participant View</a>
+            </div>
+        </div>
+
+    </div>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+{% endblock %}
