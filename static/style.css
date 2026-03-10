@@ -2279,3 +2279,367 @@ kbd {
 .data-table tr:last-child td {
   border-bottom: none;
 }
+
+/* ════════════════════════════════════════════
+   RESPONSIVE — Full Mobile & Tablet Support
+   Breakpoints: 480px | 640px | 860px | 1024px
+   ════════════════════════════════════════════ */
+
+/* ── Navbar Hamburger Toggle ── */
+.navbar__toggle {
+  display: none;
+  background: none;
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-md);
+  padding: 6px 10px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.navbar__toggle:hover {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.navbar__toggle [data-lucide] {
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
+}
+
+/* ── Large Tablets (≤ 1024px) ── */
+@media (max-width: 1024px) {
+  .container {
+    padding: 0 1.25rem;
+  }
+
+  .navbar__inner {
+    padding: 0 1.25rem;
+  }
+
+  .hero {
+    padding: 4rem 1.25rem 3.5rem;
+  }
+
+  .how-steps {
+    max-width: 680px;
+  }
+}
+
+/* ── Medium Tablets (≤ 860px) ── */
+@media (max-width: 860px) {
+
+  /* Navbar: hide links, show toggle */
+  .navbar__toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .navbar__links {
+    display: none;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    position: absolute;
+    top: 60px;
+    left: 0;
+    right: 0;
+    background: rgba(255, 255, 255, .97);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+    padding: 0.625rem 1.25rem 1rem;
+    z-index: 199;
+    box-shadow: var(--shadow-md);
+  }
+
+  .navbar__links.open {
+    display: flex;
+  }
+
+  .navbar__inner {
+    position: relative;
+    flex-wrap: wrap;
+  }
+
+  .navbar__right {
+    gap: 0.5rem;
+  }
+
+  /* Nav progress pill: hide on small screens to save space */
+  .nav-progress {
+    display: none;
+  }
+
+  /* Exercise page layout: sidebar goes above main content */
+  .page__layout {
+    grid-template-columns: 1fr;
+  }
+
+  /* Sidebar stops being sticky */
+  .sidebar {
+    position: static;
+  }
+
+  /* How-steps: 2 columns */
+  .how-steps {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem 0;
+  }
+
+  .how-steps::before {
+    display: none;
+  }
+
+  /* Charts grid */
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-card--wide {
+    grid-column: 1;
+  }
+
+  /* Dash tabs: wrap */
+  .dash-tabs {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .dash-tab {
+    flex: 1;
+    justify-content: center;
+  }
+}
+
+/* ── Mobile (≤ 640px) ── */
+@media (max-width: 640px) {
+
+  /* Smaller body font */
+  body {
+    font-size: 14px;
+  }
+
+  /* Tighter container */
+  .container {
+    padding: 0 1rem;
+  }
+
+  .navbar__inner {
+    padding: 0 1rem;
+  }
+
+  /* Hide brand sub-label */
+  .brand-sub {
+    display: none;
+  }
+
+  /* Hide mode pill in nav to save space */
+  .mode-pill {
+    display: none;
+  }
+
+  /* Hero: reduce padding */
+  .hero {
+    padding: 3rem 1rem 2.5rem;
+  }
+
+  /* Hero stat bar: wrap to 2×2 grid */
+  .hero__stat-bar {
+    flex-wrap: wrap;
+    max-width: 100%;
+    border-radius: var(--radius-lg);
+  }
+
+  .hero__stat {
+    flex: 1 1 50%;
+    min-width: 0;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .hero__stat:nth-child(odd) {
+    border-right: 1px solid var(--border);
+  }
+
+  .hero__stat:nth-last-child(-n+2) {
+    border-bottom: none;
+  }
+
+  /* Mode grid: 1 column */
+  .mode-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Mode card tighter */
+  .mode-card {
+    padding: 1.5rem 1.25rem;
+  }
+
+  /* How-steps: 1 column on mobile */
+  .how-steps {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+    max-width: 320px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* Topics grid: 2 cols on small screens */
+  .topics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Exercise page */
+  .page {
+    padding: 1.25rem 1rem 2rem;
+  }
+
+  .card__body {
+    padding: 1.25rem 1rem;
+  }
+
+  .card__header {
+    padding: 1rem 1.25rem;
+  }
+
+  /* Progress strip: shorten label on small screens */
+  .progress-strip__label:first-child {
+    font-size: 0.7rem;
+  }
+
+  /* Completion card: full width, less padding */
+  .completion-card {
+    padding: 1.75rem 1.25rem;
+    border-radius: var(--radius-xl);
+  }
+
+  /* Completion stats: 1 column */
+  .completion-stats {
+    grid-template-columns: 1fr;
+  }
+
+  /* Buttons in form */
+  .form-actions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .form-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Nav arrows: stack vertically */
+  .nav-arrows {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .nav-arrows a,
+  .nav-arrows .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Admin dashboard */
+  .dash-page {
+    padding: 1.5rem 1rem 3rem;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Markdown table: allow scroll */
+  .md-content table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Explanation table: allow scroll */
+  .explanation {
+    overflow-x: auto;
+  }
+
+  .explanation table {
+    min-width: 340px;
+  }
+}
+
+/* ── Very Small (≤ 480px) ── */
+@media (max-width: 480px) {
+  h2 {
+    font-size: 1.2rem;
+  }
+
+  /* Hero stat bar: 1 column */
+  .hero__stat {
+    flex: 1 1 100%;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .hero__stat:last-child {
+    border-bottom: none;
+  }
+
+  /* Stats card: single column */
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Completion card */
+  .completion-stat__val {
+    font-size: 1.4rem;
+  }
+
+  /* Code editor: smaller font */
+  .static-textarea,
+  .CodeMirror {
+    font-size: 0.8rem !important;
+  }
+
+  /* Info page */
+  .info-page {
+    padding: 2rem 1rem;
+  }
+
+  .info-cta-bar {
+    padding: 1.75rem 1.25rem;
+    border-radius: var(--radius-lg);
+  }
+
+  /* Topics grid: wrap to 1 column */
+  .topics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Dash tabs: column layout */
+  .dash-tabs {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .dash-tab {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  /* Chart wrap heights: shorter on tiny screens */
+  .chart-wrap {
+    height: 200px;
+  }
+
+  .chart-wrap--tall {
+    height: 220px;
+  }
+}

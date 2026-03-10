@@ -20,9 +20,10 @@
 
 {% block nav_progress %}
 {% if progress %}
+{% set prog_pct = (progress.passed / 7 * 100) | round | int %}
 <div class="nav-progress">
     <div class="nav-progress__bar">
-        <div class="nav-progress__fill" style="width:{{ (progress.passed / 7 * 100)|round|int }}%"></div>
+        <div class="nav-progress__fill" style="width:{{ prog_pct }}%"></div>
     </div>
     {{ progress.passed }}/7 passed
 </div>
@@ -38,13 +39,14 @@
     <div class="container">
 
         <!-- Progress Strip -->
+        {% set current_pct = ((exercise_index + 1) / total * 100) | round | int %}
         <div class="progress-strip">
             <span class="progress-strip__label">Exercise {{ exercise_index + 1 }} of {{ total }}</span>
             <div class="progress-bar">
-                <div class="progress-bar__fill" style="width:{{ ((exercise_index + 1) / total * 100)|round|int }}%">
+                <div class="progress-bar__fill" style="width:{{ current_pct }}%">
                 </div>
             </div>
-            <span class="progress-strip__label">{{ ((exercise_index + 1) / total * 100)|round|int }}%</span>
+            <span class="progress-strip__label">{{ current_pct }}%</span>
         </div>
 
         <div class="page__layout">

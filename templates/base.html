@@ -22,8 +22,13 @@
                 </div>
             </a>
 
+            <!-- Hamburger toggle (mobile only) -->
+            <button class="navbar__toggle" id="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+                <i data-lucide="menu"></i>
+            </button>
+
             <!-- Navigation links -->
-            <div class="navbar__links">
+            <div class="navbar__links" id="nav-links">
                 <a href="{{ url_for('index') }}" class="nav-link {% block nav_home %}{% endblock %}">
                     <i data-lucide="home"></i> Home
                 </a>
@@ -71,6 +76,31 @@
     {% block scripts %}{% endblock %}
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
     <script>if (typeof lucide !== 'undefined') lucide.createIcons();</script>
+    <script>
+        (function () {
+            var toggle = document.getElementById('nav-toggle');
+            var links = document.getElementById('nav-links');
+            if (!toggle || !links) return;
+            toggle.addEventListener('click', function () {
+                var open = links.classList.toggle('open');
+                toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+            });
+            // Close menu when a nav link is clicked
+            links.querySelectorAll('.nav-link').forEach(function (a) {
+                a.addEventListener('click', function () {
+                    links.classList.remove('open');
+                    toggle.setAttribute('aria-expanded', 'false');
+                });
+            });
+            // Close menu when clicking outside
+            document.addEventListener('click', function (e) {
+                if (!toggle.contains(e.target) && !links.contains(e.target)) {
+                    links.classList.remove('open');
+                    toggle.setAttribute('aria-expanded', 'false');
+                }
+            });
+        })();
+    </script>
 </body>
 
 </html>
