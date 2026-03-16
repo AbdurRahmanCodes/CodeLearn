@@ -107,14 +107,18 @@ class LearningJourney:
             - recommendations: [] (if B_adaptive)
             - next_exercise: exercise_id + 1 if passed, else None
         """
+        # Import here to avoid circular imports
+        from app.services.exercise_service import ExerciseService
+        from app.services.recommendation_service import RecommendationService
+        
         # Get attempt number for this exercise
         attempt_num = self._get_attempt_count(exercise_id) + 1
         
-        # Execute code (placeholder - will integrate with execute_and_test)
-        result = self._execute_code_placeholder(code, language, exercise_id)
+        # Execute code with real ExerciseService
+        result = self._execute_code(code, language, exercise_id)
         
         # Determine pass/fail
-        pass_fail = "pass" if result['tests_passed'] == result['total_tests'] else "fail"
+        pass_fail = "pass" if result.get('pass_fail') == 'pass' else "fail"
         
         # Log attempt to MongoDB
         attempt_doc = {
@@ -134,11 +138,18 @@ class LearningJourney:
         # Generate recommendations if B_adaptive arm
         recommendations = []
         if self.context['experiment_arm'] == 'B_adaptive':
-            recommendations = self._trigger_recommendations(
+            recs = RecommendationService.generate_recommendation(
+                session_id=self.session_id,
                 exercise_id=exercise_id,
+                language=language,
                 result=pass_fail,
                 error_type=result.get('error_type'),
+                attempt_number=attempt_num,
             )
+            # Log recommendations
+            for rec in recs:
+                RecommendationService.log_recommendation(mongo, self.session_id, rec, clicked=False)
+            recommendations = recs
         
         return {
             'result': result,
@@ -238,33 +249,41 @@ class LearningJourney:
             'exercise_id': exercise_id,
         })
     
-    def _execute_code_placeholder(self, code: str, language: str, exercise_id: int) -> Dict:
+    def _execute_code(self, code: str, language: str, exercise_id: int) -> Dict:
         """
-        PLACEHOLDER: Execute code and run tests
-        Will be replaced with actual execute_and_test() from app.py
+        Execute code and validate against test cases
+        Uses ExerciseService (moved from old app.py)
         """
-        # TODO: Integrate actual code execution logic from app.py
-        return {
-            'tests_passed': 1,
-            'total_tests': 1,
-            'error_type': None,
-            'output': 'Placeholder - integrate with actual execution engine',
-        }
-    
-    def _trigger_recommendations(self, exercise_id: int, result: str, error_type: Optional[str]) -> List[Dict]:
-        """
-        Generate personalized recommendations (B_adaptive arm only)
-        TODO: Integrate with actual recommendation logic from app.py
-        """
-        # Placeholder recommendations
-        if result == 'fail' and error_type == 'syntax_error':
-            return [{
-                'id': f'rec_{uuid.uuid4().hex[:8]}',
-                'type': 'syntax_guide',
-                'title': 'Python Syntax Guide',
-                'reason': f'You encountered a syntax error in exercise {exercise_id}',
-                'url': '/topic/syntax-guide',
-                'clicked': False,
-            }]
+        from app.services.exercise_service import ExerciseService
         
-        return []
+        try:
+            # Get exercise from MongoDB
+            exercise = mongo.db.exercises.find_one({'exercise_id': exercise_id})
+            
+            if not exercise:
+                return {
+                    'tests_passed': 0,
+                    'total_tests': 0,
+                    'error_type': 'not_found',
+                    'output': f'Exercise {exercise_id} not found',
+                    'pass_fail': 'fail',
+                }
+            
+            # Execute code against test cases
+            result = ExerciseService.execute_and_evaluate(
+                code=code,
+                language=language,
+                exercise=exercise,
+                timeout=5
+            )
+            
+            return result
+            
+        except Exception as e:
+            return {
+                'tests_passed': 0,
+                'total_tests': 1,
+                'error_type': 'runtime',
+                'output': f'Error during execution: {str(e)}',
+                'pass_fail': 'fail',
+            }

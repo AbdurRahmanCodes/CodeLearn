@@ -28,13 +28,16 @@ def create_app():
     # Initialize MongoDB
     mongo.init_app(app)
     
-    # Register blueprints (routes will be added here as they're created)
-    # For now, we'll add them as we build them out
-    # from app.routes import auth_bp, exercises_bp, dashboard_bp, admin_bp
-    # app.register_blueprint(auth_bp)
-    # app.register_blueprint(exercises_bp)
-    # app.register_blueprint(dashboard_bp)
-    # app.register_blueprint(admin_bp)
+    # Register blueprints
+    from app.routes.auth import auth_bp
+    from app.routes.exercises import exercises_bp
+    from app.routes.dashboard import dashboard_bp
+    from app.routes.admin import admin_bp
+    
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(exercises_bp)
+    app.register_blueprint(dashboard_bp)
+    app.register_blueprint(admin_bp)
     
     @app.route('/')
     def index():
