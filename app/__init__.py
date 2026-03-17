@@ -58,6 +58,7 @@ def create_app():
     from app.routes.dashboard import dashboard_bp
     from app.routes.admin import admin_bp
     from app.routes import web_pages
+    from app.routes import stats_api
     
     app.register_blueprint(auth_bp)
     app.register_blueprint(exercises_bp)
@@ -80,6 +81,22 @@ def create_app():
     app.add_url_rule('/quiz/<topic_id>', endpoint='topic_quiz', view_func=web_pages.topic_quiz, methods=['GET', 'POST'])
     app.add_url_rule('/export-research-dataset', endpoint='export_research_dataset', view_func=web_pages.export_research_dataset)
     app.add_url_rule('/export-session-summary', endpoint='export_session_summary', view_func=web_pages.export_session_summary)
+
+    # Stats APIs used by admin dashboard charts.
+    app.add_url_rule('/api/stats/summary', endpoint='api_stats_summary', view_func=stats_api.api_stats_summary)
+    app.add_url_rule('/api/stats/research-snapshot', endpoint='api_research_snapshot', view_func=stats_api.api_research_snapshot)
+    app.add_url_rule('/api/stats/pass-rate', endpoint='api_stats_pass_rate', view_func=stats_api.api_stats_pass_rate)
+    app.add_url_rule('/api/stats/attempts', endpoint='api_stats_attempts', view_func=stats_api.api_stats_attempts)
+    app.add_url_rule('/api/stats/errors', endpoint='api_stats_errors', view_func=stats_api.api_stats_errors)
+    app.add_url_rule('/api/stats/learning-curve', endpoint='api_stats_learning_curve', view_func=stats_api.api_stats_learning_curve)
+    app.add_url_rule('/api/stats/language-difficulty', endpoint='api_stats_language_difficulty', view_func=stats_api.api_stats_language_difficulty)
+    app.add_url_rule('/api/stats/topic-success', endpoint='api_stats_topic_success', view_func=stats_api.api_stats_topic_success)
+    app.add_url_rule('/api/stats/quiz-performance', endpoint='api_stats_quiz_performance', view_func=stats_api.api_stats_quiz_performance)
+    app.add_url_rule('/api/stats/recommendation-effectiveness', endpoint='api_stats_recommendation_effectiveness', view_func=stats_api.api_stats_recommendation_effectiveness)
+    app.add_url_rule('/api/stats/session-quality', endpoint='api_stats_session_quality', view_func=stats_api.api_stats_session_quality)
+    app.add_url_rule('/api/stats/time-to-pass', endpoint='api_stats_time_to_pass', view_func=stats_api.api_stats_time_to_pass)
+    app.add_url_rule('/api/stats/persistence', endpoint='api_stats_persistence', view_func=stats_api.api_stats_persistence)
+    app.add_url_rule('/api/stats/error-transitions', endpoint='api_stats_error_transitions', view_func=stats_api.api_stats_error_transitions)
     
     @app.route('/health')
     def health():
