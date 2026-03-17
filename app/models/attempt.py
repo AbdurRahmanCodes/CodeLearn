@@ -4,7 +4,7 @@ Represents a single code submission attempt
 """
 
 from dataclasses import dataclass, asdict
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict
 
 
@@ -35,7 +35,7 @@ class Attempt:
     def __post_init__(self):
         """Initialize defaults"""
         if self.timestamp is None:
-            self.timestamp = datetime.utcnow()
+            self.timestamp = datetime.now(timezone.utc)
         
         # Validate result
         if self.result not in ["pass", "fail"]:

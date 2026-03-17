@@ -4,7 +4,7 @@ Represents a user's learning session state
 """
 
 from dataclasses import dataclass, asdict
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 
@@ -39,9 +39,9 @@ class Session:
         if self.recommendations_seen is None:
             self.recommendations_seen = []
         if self.created_at is None:
-            self.created_at = datetime.utcnow()
+            self.created_at = datetime.now(timezone.utc)
         if self.updated_at is None:
-            self.updated_at = datetime.utcnow()
+            self.updated_at = datetime.now(timezone.utc)
     
     def to_dict(self) -> Dict:
         """Convert to dictionary for MongoDB storage"""

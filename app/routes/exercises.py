@@ -6,12 +6,13 @@ Handles: Exercise display, code submission, attempt logging
 from flask import Blueprint, request, jsonify, session as flask_session
 from app import mongo
 from app.services import LearningJourney
-from datetime import datetime
+from app.utils import requires_mode_selected, requires_session
 
 exercises_bp = Blueprint('exercises', __name__, url_prefix='/exercises')
 
 
 @exercises_bp.route('/<int:exercise_id>', methods=['GET'])
+@requires_session
 def get_exercise(exercise_id):
     """
     Get exercise details
@@ -20,12 +21,6 @@ def get_exercise(exercise_id):
     Response: {exercise_id, title, description, test_cases}
     """
     session_id = flask_session.get('session_id')
-    
-    if not session_id:
-        return jsonify({
-            'success': False,
-            'error': 'No active session',
-        }), 401
     
     if exercise_id < 1 or exercise_id > 7:
         return jsonify({
@@ -59,6 +54,7 @@ def get_exercise(exercise_id):
 
 
 @exercises_bp.route('/<int:exercise_id>/submit', methods=['POST'])
+@requires_mode_selected
 def submit_attempt(exercise_id):
     """
     Submit code attempt for an exercise
@@ -68,12 +64,6 @@ def submit_attempt(exercise_id):
     Response: {result, pass_fail, recommendations, next_exercise}
     """
     session_id = flask_session.get('session_id')
-    
-    if not session_id:
-        return jsonify({
-            'success': False,
-            'error': 'No active session',
-        }), 401
     
     data = request.json or {}
     code = data.get('code')
@@ -116,6 +106,7 @@ def submit_attempt(exercise_id):
 
 
 @exercises_bp.route('/<int:exercise_id>/attempts', methods=['GET'])
+@requires_session
 def get_exercise_attempts(exercise_id):
     """
     Get all attempts for an exercise in this session
@@ -124,12 +115,6 @@ def get_exercise_attempts(exercise_id):
     Response: {attempts: [{code, result, timestamp, attempt_number}, ...]}
     """
     session_id = flask_session.get('session_id')
-    
-    if not session_id:
-        return jsonify({
-            'success': False,
-            'error': 'No active session',
-        }), 401
     
     try:
         attempts = list(mongo.db.attempts.find({

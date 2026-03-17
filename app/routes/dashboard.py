@@ -6,11 +6,13 @@ Handles: Personal dashboard, study design, progress metrics
 from flask import Blueprint, jsonify, session as flask_session
 from app import mongo
 from app.services import LearningJourney
+from app.utils import requires_session
 
 dashboard_bp = Blueprint('dashboard', __name__, url_prefix='/dashboard')
 
 
 @dashboard_bp.route('/user', methods=['GET'])
+@requires_session
 def get_user_dashboard():
     """
     Get learner's personal dashboard
@@ -20,12 +22,6 @@ def get_user_dashboard():
     Response: {total_attempts, pass_rate, exercises_completed, ...}
     """
     session_id = flask_session.get('session_id')
-    
-    if not session_id:
-        return jsonify({
-            'success': False,
-            'error': 'No active session',
-        }), 401
     
     try:
         journey = LearningJourney(session_id)
@@ -44,6 +40,7 @@ def get_user_dashboard():
 
 
 @dashboard_bp.route('/progress', methods=['GET'])
+@requires_session
 def get_progress_by_exercise():
     """
     Get progress by exercise (which ones passed, how many attempts)
@@ -52,12 +49,6 @@ def get_progress_by_exercise():
     Response: {exercises: {1: {attempts: 2, passed: true}, 2: {...}}}
     """
     session_id = flask_session.get('session_id')
-    
-    if not session_id:
-        return jsonify({
-            'success': False,
-            'error': 'No active session',
-        }), 401
     
     try:
         # Query all attempts for this session
@@ -97,6 +88,7 @@ def get_progress_by_exercise():
 
 
 @dashboard_bp.route('/quizzes', methods=['GET'])
+@requires_session
 def get_quiz_performance():
     """
     Get quiz performance by topic
@@ -105,12 +97,6 @@ def get_quiz_performance():
     Response: {quizzes: {variables: {score: 80, total: 100, percentage: 80}, ...}}
     """
     session_id = flask_session.get('session_id')
-    
-    if not session_id:
-        return jsonify({
-            'success': False,
-            'error': 'No active session',
-        }), 401
     
     try:
         quizzes = list(mongo.db.quiz_attempts.find({
@@ -144,6 +130,7 @@ def get_quiz_performance():
 
 
 @dashboard_bp.route('/recommendations', methods=['GET'])
+@requires_session
 def get_recommendations_history():
     """
     Get history of recommendations shown to this user
@@ -153,12 +140,6 @@ def get_recommendations_history():
     Response: {recommendations: [{id, type, title, clicked, timestamp}, ...]}
     """
     session_id = flask_session.get('session_id')
-    
-    if not session_id:
-        return jsonify({
-            'success': False,
-            'error': 'No active session',
-        }), 401
     
     try:
         recs = list(mongo.db.recommendations_log.find({

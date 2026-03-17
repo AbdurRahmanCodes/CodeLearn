@@ -4,7 +4,7 @@ Represents a quiz submission
 """
 
 from dataclasses import dataclass, asdict
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict
 
 
@@ -29,7 +29,7 @@ class QuizAttempt:
     def __post_init__(self):
         """Initialize defaults and validate"""
         if self.timestamp is None:
-            self.timestamp = datetime.utcnow()
+            self.timestamp = datetime.now(timezone.utc)
         
         if self.score < 0 or self.total <= 0:
             raise ValueError("score must be >= 0, total must be > 0")

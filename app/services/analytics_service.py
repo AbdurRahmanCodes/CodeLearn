@@ -4,7 +4,7 @@ Aggregates and analyzes learning outcomes and A/B experiment results
 """
 
 from typing import Dict, List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 
 class AnalyticsService:
@@ -201,7 +201,7 @@ class AnalyticsService:
         arm_b = mongo.db.session_context.count_documents({'experiment_arm': 'B_adaptive'})
         
         # Active in last 24 hours
-        cutoff = datetime.utcnow() - timedelta(hours=24)
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
         active_24h = mongo.db.attempts.count_documents({'timestamp': {'$gte': cutoff}})
         
         return {

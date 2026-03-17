@@ -4,8 +4,8 @@ Handles: Session creation, mode selection
 """
 
 from flask import Blueprint, request, jsonify, session as flask_session
-from app import mongo
 from app.services import LearningJourney
+from app.utils import requires_session
 import uuid
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
@@ -27,6 +27,7 @@ def create_session():
         
         # Store session ID in Flask session for cookie-based tracking
         flask_session['session_id'] = session_id
+        flask_session.pop('user_mode', None)
         
         return jsonify({
             'success': True,
@@ -43,6 +44,7 @@ def create_session():
 
 
 @auth_bp.route('/select-mode', methods=['POST'])
+@requires_session
 def select_mode():
     """
     User selects learning mode (Static or Interactive)
@@ -53,13 +55,7 @@ def select_mode():
     """
     session_id = flask_session.get('session_id')
     
-    if not session_id:
-        return jsonify({
-            'success': False,
-            'error': 'No active session. Call /auth/session first.',
-        }), 401
-    
-    mode = request.json.get('mode')
+    mode = (request.get_json(silent=True) or {}).get('mode')
     
     if not mode:
         return jsonify({
@@ -75,6 +71,8 @@ def select_mode():
                 'success': False,
                 'error': f'Invalid mode: {mode}. Must be "static" or "interactive".',
             }), 400
+
+        flask_session['user_mode'] = mode
         
         return jsonify({
             'success': True,
@@ -91,6 +89,7 @@ def select_mode():
 
 
 @auth_bp.route('/status', methods=['GET'])
+@requires_session
 def session_status():
     """
     Get current session status
@@ -99,12 +98,6 @@ def session_status():
     Response: {session_id, mode, experiment_arm}
     """
     session_id = flask_session.get('session_id')
-    
-    if not session_id:
-        return jsonify({
-            'success': False,
-            'error': 'No active session',
-        }), 401
     
     try:
         journey = LearningJourney(session_id)

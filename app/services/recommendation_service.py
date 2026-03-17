@@ -5,7 +5,7 @@ Generates adaptive recommendations for B_adaptive arm only
 
 import uuid
 from typing import Dict, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class RecommendationService:
@@ -98,7 +98,7 @@ class RecommendationService:
                 'attempt_number': attempt_number,
                 'language': language,
                 'clicked': False,
-                'timestamp': datetime.utcnow(),
+                'timestamp': datetime.now(timezone.utc),
             })
             return recommendations
         
@@ -116,7 +116,7 @@ class RecommendationService:
                 'attempt_number': attempt_number,
                 'language': language,
                 'clicked': False,
-                'timestamp': datetime.utcnow(),
+                'timestamp': datetime.now(timezone.utc),
             })
         
         # Additional recommendations for repeated failures
@@ -133,7 +133,7 @@ class RecommendationService:
                 'attempt_number': attempt_number,
                 'language': language,
                 'clicked': False,
-                'timestamp': datetime.utcnow(),
+                'timestamp': datetime.now(timezone.utc),
             })
         
         return recommendations
@@ -167,7 +167,7 @@ class RecommendationService:
                 'attempt_number': recommendation.get('attempt_number'),
                 'reason': recommendation.get('reason'),
                 'clicked': clicked,
-                'timestamp': recommendation.get('timestamp', datetime.utcnow()),
+                'timestamp': recommendation.get('timestamp', datetime.now(timezone.utc)),
             }
             
             mongo.db.recommendations_log.insert_one(doc)

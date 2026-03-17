@@ -13,15 +13,29 @@ load_dotenv()
 # Initialize MongoDB (will be configured in create_app)
 mongo = PyMongo()
 
+
+def _build_mongo_uri(base_uri: str, db_name: str) -> str:
+    """Attach a default database to Mongo URI when one is not present."""
+    if not base_uri:
+        return base_uri
+    if "/?" in base_uri:
+        return base_uri.replace("/?", f"/{db_name}?", 1)
+    if base_uri.endswith("/"):
+        return f"{base_uri}{db_name}"
+    if base_uri.count("/") <= 2:
+        return f"{base_uri}/{db_name}"
+    return base_uri
+
 def create_app():
     """
     Application factory pattern
     Creates and configures Flask app with all dependencies
     """
     app = Flask(__name__)
+    mongo_uri = _build_mongo_uri(os.getenv('MONGO_URI'), 'programming_research')
     
     # Configuration
-    app.config['MONGO_URI'] = os.getenv('MONGO_URI')
+    app.config['MONGO_URI'] = mongo_uri
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
     app.config['JSON_SORT_KEYS'] = False
     

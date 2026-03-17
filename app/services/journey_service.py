@@ -5,7 +5,7 @@ Central orchestrator for user's learning journey
 
 import random
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 from app import mongo
 from app.models import Session, Attempt, QuizAttempt
@@ -54,8 +54,8 @@ class LearningJourney:
             'current_exercise_id': None,
             'quiz_scores_by_topic': {},
             'recommendations_seen': [],
-            'created_at': datetime.utcnow(),
-            'updated_at': datetime.utcnow(),
+            'created_at': datetime.now(timezone.utc),
+            'updated_at': datetime.now(timezone.utc),
         }
         
         # Insert into database
@@ -76,7 +76,7 @@ class LearningJourney:
             return False
         
         self.context['user_mode'] = mode
-        self.context['updated_at'] = datetime.utcnow()
+        self.context['updated_at'] = datetime.now(timezone.utc)
         
         # Persist to database
         mongo.db.session_context.update_one(
@@ -84,7 +84,7 @@ class LearningJourney:
             {
                 '$set': {
                     'user_mode': mode,
-                    'updated_at': datetime.utcnow()
+                    'updated_at': datetime.now(timezone.utc)
                 }
             }
         )
@@ -129,7 +129,7 @@ class LearningJourney:
             'attempt_number': attempt_num,
             'result': pass_fail,
             'error_type': result.get('error_type'),
-            'timestamp': datetime.utcnow(),
+            'timestamp': datetime.now(timezone.utc),
             'experiment_arm': self.context['experiment_arm'],
             'user_mode': self.context['user_mode'],
         }
@@ -178,7 +178,7 @@ class LearningJourney:
             'score': score,
             'total': total,
             'score_percentage': (score / total * 100) if total > 0 else 0,
-            'timestamp': datetime.utcnow(),
+            'timestamp': datetime.now(timezone.utc),
             'experiment_arm': self.context['experiment_arm'],
             'user_mode': self.context['user_mode'],
         }
@@ -190,7 +190,7 @@ class LearningJourney:
             {
                 '$set': {
                     f'quiz_scores_by_topic.{topic}': score,
-                    'updated_at': datetime.utcnow()
+                    'updated_at': datetime.now(timezone.utc)
                 }
             }
         )
