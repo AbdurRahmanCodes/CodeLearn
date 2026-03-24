@@ -5,6 +5,23 @@ A Flask + MongoDB research platform for studying beginner programming behavior a
 
 ---
 
+## Latest Release Notes
+
+### 2026-03-25 (Commit: a200245)
+
+- Finalized modular learning architecture using dedicated engines and services.
+- Consolidated learner workflow into a unified exercise, topic, quiz, and completion journey.
+- Added research pipeline scripts for synthetic population, journey simulation, and end-to-end validation.
+- Improved dashboard analytics consistency and recommendation continuity across navigation.
+- Added final dissertation manuscript file: `FINAL_IEEE_RESEARCH_PAPER.md`.
+- Removed obsolete templates and non-essential planning/audit artifacts from the repository.
+
+Validation status:
+
+- Focused regression suite passed: `35 passed` (`tests/test_web_pages.py`, `tests/test_routes_endpoints.py`, `tests/test_stats_api.py`).
+
+---
+
 ## Project Overview
 
 The platform compares two learning experiences:
@@ -93,11 +110,9 @@ Open http://localhost:5000.
 # Full suite
 pytest -q
 
-# Focused stats API tests
-pytest tests/test_stats_api.py -q
+# Focused web + API regression checks
+pytest tests/test_web_pages.py tests/test_routes_endpoints.py tests/test_stats_api.py -q
 ```
-
-Current baseline: 56 passing tests.
 
 ---
 
@@ -166,22 +181,17 @@ CodeLearn/
 |- templates/
 |- static/
 |- tests/
-|- PLANNING/           # archived planning and strategy docs
 |- seed_data.py
 |- simulate_user_journeys.py
-|- IMPLEMENTATION_REPORT.md
-|- DISSERTATION_NARRATIVE.md
-|- RESEARCH_ARCHITECTURE.md
+|- run_research_pipeline.py
+|- FINAL_IEEE_RESEARCH_PAPER.md
 ```
 
 ---
 
 ## Documentation
 
-- IMPLEMENTATION_REPORT.md: technical implementation narrative
-- DISSERTATION_NARRATIVE.md: research methodology and analysis plan
-- RESEARCH_ARCHITECTURE.md: data schema and architecture references
-- VIVA_PREPARATION_CHECKLIST.md: viva preparation script/checklist
+- FINAL_IEEE_RESEARCH_PAPER.md: final IEEE-style dissertation manuscript
 
 ---
 
