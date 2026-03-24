@@ -4,144 +4,146 @@
 {% block nav_home %}active{% endblock %}
 
 {% block content %}
-
-<!-- Hero -->
 <section class="hero">
   <div class="container container--narrow">
-    <div class="hero__eyebrow" style="position:relative;z-index:1;">
-      <i data-lucide="flask-conical"></i> Academic Research Study &nbsp;&middot;&nbsp; COM748 Masters Project
+    <div class="hero__eyebrow">
+      <i data-lucide="flask-conical"></i> Academic Research Study · COM748 Masters Project
     </div>
-    <h1 class="hero__title">
-      How does feedback shape<br>
-      <span class="gradient-text">programming learning?</span>
-    </h1>
-    <p class="hero__subtitle">
-      A controlled experiment comparing two Python learning environments.
-      Your participation contributes to academic research on programming education.
-    </p>
+    <h1 class="hero__title">Clean Learning Flow for Research Evidence</h1>
+    <p class="hero__subtitle">Follow two simple steps to begin. Your session starts only after final confirmation.</p>
 
-    <!-- Stat Bar -->
-    <div class="hero__stat-bar">
-      <div class="hero__stat">
-        <div class="hero__stat-val gradient-text">7</div>
-        <div class="hero__stat-lbl">Python Exercises</div>
+    <div class="info-box hero-step">
+      <div class="info-box__label"><i data-lucide="languages"></i> Step 1: Select Your Learning Track</div>
+      <p class="info-box__text hero-step__text">Choose one language track for a consistent learning journey.</p>
+      <div class="hero-lang-row">
+        <button type="button" class="btn lang-picker__btn" data-lang="python" id="lang-python">Python</button>
+        <button type="button" class="btn lang-picker__btn" data-lang="javascript" id="lang-javascript">JavaScript</button>
       </div>
-      <div class="hero__stat">
-        <div class="hero__stat-val" style="color:var(--success);">100%</div>
-        <div class="hero__stat-lbl">Anonymous</div>
-      </div>
-      <div class="hero__stat">
-        <div class="hero__stat-val" style="color:var(--warning);">~30</div>
-        <div class="hero__stat-lbl">Minutes</div>
-      </div>
-      <div class="hero__stat">
-        <div class="hero__stat-val" style="color:var(--accent);">0</div>
-        <div class="hero__stat-lbl">Registration</div>
-      </div>
+      <p id="lang-selected" class="hero-selection">Selected language: none</p>
     </div>
 
-    <!-- Mode Cards -->
-    <div class="mode-grid">
-      <a href="{{ url_for('static_mode') }}" class="mode-card mode-card--static">
-        <span class="mode-card__badge">Control Group</span>
-        <div class="mode-card__icon"><i data-lucide="file-text"></i></div>
-        <div class="mode-card__title">Static Mode</div>
-        <p class="mode-card__desc">Traditional minimal-feedback environment. Submit code, receive only Correct or
-          Incorrect.</p>
-        <ul class="mode-card__features">
-          <li><i data-lucide="check" class="feat-check"></i> Written exercise descriptions</li>
-          <li><i data-lucide="check" class="feat-check"></i> Code submission area</li>
-          <li><i data-lucide="x" class="feat-cross"></i> No error explanations</li>
-          <li><i data-lucide="x" class="feat-cross"></i> No expected output shown</li>
-        </ul>
-        <div class="mode-card__cta">Enter Static Mode <i data-lucide="arrow-right"></i></div>
-      </a>
-
-      <a href="{{ url_for('interactive_mode') }}" class="mode-card mode-card--interactive">
-        <span class="mode-card__badge">Experimental</span>
-        <div class="mode-card__icon"
-          style="background:linear-gradient(135deg,var(--primary-light),var(--accent-bg));border:1px solid var(--primary-border);color:var(--primary);">
-          <i data-lucide="zap"></i></div>
-        <div class="mode-card__title">Interactive Mode</div>
-        <p class="mode-card__desc">Automated-feedback environment. Receive detailed, instant guidance on every
-          submission.</p>
-        <ul class="mode-card__features">
-          <li><i data-lucide="check" class="feat-check"></i> Concept explanations included</li>
-          <li><i data-lucide="check" class="feat-check"></i> Syntax-highlighted editor</li>
-          <li><i data-lucide="check" class="feat-check"></i> Per-test-case feedback</li>
-          <li><i data-lucide="check" class="feat-check"></i> Error type classification</li>
-        </ul>
-        <div class="mode-card__cta" style="color:var(--accent);">Enter Interactive Mode <i
-            data-lucide="arrow-right"></i></div>
-      </a>
+    <div class="info-box hero-step hero-step--modes">
+      <div class="info-box__label"><i data-lucide="layout-dashboard"></i> Step 2: Choose Your Learning Experience</div>
+      <div class="mode-grid hero-mode-grid">
+        <article class="mode-card mode-card--static mode-card--clickable" data-mode="static">
+          <span class="mode-card__badge">Static Mode (Control)</span>
+          <div class="mode-card__icon"><i data-lucide="file-text"></i></div>
+          <div class="mode-card__title">Static Mode</div>
+          <p class="mode-card__desc">Simple correct/incorrect feedback with no guidance.</p>
+        </article>
+        <article class="mode-card mode-card--interactive mode-card--clickable" data-mode="interactive">
+          <span class="mode-card__badge">Interactive Mode (Adaptive)</span>
+          <div class="mode-card__icon"><i data-lucide="zap"></i></div>
+          <div class="mode-card__title">Interactive Mode</div>
+          <p class="mode-card__desc">Detailed feedback, step-by-step guidance, and adaptive recommendations.</p>
+        </article>
+      </div>
+      <p id="mode-selected" class="hero-selection">Selected mode: none</p>
     </div>
 
-    <!-- Ethics note -->
-    <div class="info-box" style="position:relative;z-index:1;">
-      <div class="info-box__label"><i data-lucide="shield-check"></i> Research Ethics</div>
-      <p class="info-box__text">
-        No personal data is collected. Only anonymous interaction events are recorded.
-        You may close this browser tab at any time to end participation.
-        <a href="{{ url_for('research_info') }}">Read the full research information sheet</a>
-      </p>
+    <div class="hero-actions">
+      <button type="button" id="review-selection" class="btn btn--primary" disabled>Review and Confirm</button>
+      <a href="{{ url_for('study_information') }}" class="btn btn--secondary">Study Information</a>
     </div>
   </div>
 </section>
 
-<!-- How It Works -->
-<section class="how-it-works">
-  <div class="container" style="text-align:center;">
-    <h2 style="margin-bottom:.375rem;">How participation works</h2>
-    <p style="max-width:480px;margin:0 auto;">Four simple steps, no account required, fully anonymous.</p>
-    <div class="how-steps">
-      <div class="how-step">
-        <div class="how-step__num">1</div>
-        <div class="how-step__title">Choose a mode</div>
-        <div class="how-step__desc">Select Static or Interactive based on your preference</div>
+<div id="confirm-modal" class="confirm-modal">
+  <div class="card confirm-modal__card">
+    <div class="card__header">
+      <div class="card__title">
+        <span class="tag tag--primary">Step 3</span>
+        <h2 class="confirm-modal__title">Confirm Session Setup</h2>
       </div>
-      <div class="how-step">
-        <div class="how-step__num">2</div>
-        <div class="how-step__title">Complete exercises</div>
-        <div class="how-step__desc">Work through 7 beginner Python programming tasks</div>
-      </div>
-      <div class="how-step">
-        <div class="how-step__num">3</div>
-        <div class="how-step__title">Submit your code</div>
-        <div class="how-step__desc">Each submission is recorded anonymously in our database</div>
-      </div>
-      <div class="how-step">
-        <div class="how-step__num">4</div>
-        <div class="how-step__title">View your summary</div>
-        <div class="how-step__desc">See your session stats when complete</div>
-      </div>
+      <p class="card__header-hint">Session will start only after confirmation.</p>
+    </div>
+    <div class="card__body">
+      <p class="confirm-row"><strong>Language:</strong> <span id="confirm-language">-</span></p>
+      <p class="confirm-row confirm-row--last"><strong>Mode:</strong> <span id="confirm-mode">-</span></p>
+      <form method="POST" action="{{ url_for('start_session') }}" id="start-session-form" class="confirm-form">
+        <input type="hidden" name="language" id="input-language" value="">
+        <input type="hidden" name="mode" id="input-mode" value="">
+        <button type="button" id="cancel-confirm" class="btn btn--secondary btn--sm">Cancel</button>
+        <button type="submit" class="btn btn--primary btn--sm">Start Session</button>
+      </form>
     </div>
   </div>
-</section>
+</div>
+{% endblock %}
 
-<!-- Topics strip -->
-<section class="topics-section">
-  <div class="container container--narrow" style="text-align:center;">
-    <h2 style="margin-bottom:.375rem;">7 Beginner Python Exercises</h2>
-    <p style="margin:0 auto 0;max-width:480px;">No prior programming experience needed. Exercises increase gradually in
-      complexity.</p>
-    <div class="topics-grid">
-      {% set topics = [
-      ("EX01","Variables","Data assignment & types"),
-      ("EX02","Arithmetic","Operators & calculations"),
-      ("EX03","Strings","Text & built-in methods"),
-      ("EX04","Conditions","if / elif / else logic"),
-      ("EX05","While Loops","Iteration & control"),
-      ("EX06","For / Lists","Sequence traversal"),
-      ("EX07","Functions","Reusable logic blocks"),
-      ] %}
-      {% for num, name, desc in topics %}
-      <div class="topic-chip">
-        <div class="topic-chip__num">{{ num }}</div>
-        <div class="topic-chip__name">{{ name }}</div>
-        <div class="topic-chip__desc">{{ desc }}</div>
-      </div>
-      {% endfor %}
-    </div>
-  </div>
-</section>
+{% block scripts %}
+<script>
+  (function () {
+    let selectedLanguage = '{{ selected_language }}' || '';
+    let selectedMode = '';
+
+    const langButtons = document.querySelectorAll('[data-lang]');
+    const modeCards = document.querySelectorAll('[data-mode]');
+    const reviewBtn = document.getElementById('review-selection');
+    const modal = document.getElementById('confirm-modal');
+    const cancelBtn = document.getElementById('cancel-confirm');
+
+    function syncLanguageButtons() {
+      langButtons.forEach(function (btn) {
+        const isSelected = btn.getAttribute('data-lang') === selectedLanguage;
+        btn.classList.toggle('lang-picker__btn--selected', isSelected);
+        btn.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+      });
+    }
+
+    function updateSelectionText() {
+      const langText = document.getElementById('lang-selected');
+      const modeText = document.getElementById('mode-selected');
+      if (langText) langText.textContent = 'Selected language: ' + (selectedLanguage || 'none');
+      if (modeText) modeText.textContent = 'Selected mode: ' + (selectedMode || 'none');
+      if (reviewBtn) reviewBtn.disabled = !(selectedLanguage && selectedMode);
+    }
+
+    langButtons.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        selectedLanguage = btn.getAttribute('data-lang') || '';
+        syncLanguageButtons();
+        updateSelectionText();
+      });
+    });
+
+    modeCards.forEach(function (card) {
+      card.addEventListener('click', function () {
+        selectedMode = card.getAttribute('data-mode') || '';
+        modeCards.forEach(function (c) { c.classList.remove('mode-card--selected'); });
+        card.classList.add('mode-card--selected');
+        updateSelectionText();
+      });
+    });
+
+    if (reviewBtn) {
+      reviewBtn.addEventListener('click', function () {
+        if (!(selectedLanguage && selectedMode)) return;
+        document.getElementById('confirm-language').textContent = selectedLanguage;
+        document.getElementById('confirm-mode').textContent = selectedMode;
+        document.getElementById('input-language').value = selectedLanguage;
+        document.getElementById('input-mode').value = selectedMode;
+        modal.style.display = 'flex';
+      });
+    }
+
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', function () {
+        modal.style.display = 'none';
+      });
+    }
+
+    modal.addEventListener('click', function (e) {
+      if (e.target === modal) modal.style.display = 'none';
+    });
+
+    window.addEventListener('pageshow', function () {
+      syncLanguageButtons();
+      updateSelectionText();
+    });
+
+    syncLanguageButtons();
+    updateSelectionText();
+  })();
+</script>
 {% endblock %}

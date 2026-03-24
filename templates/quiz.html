@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Diagnostic Quiz — {{ topic.title }}{% endblock %}
+
+{% block content %}
+<main class="page">
+    <div class="container container--narrow">
+        <div id="quiz-loading" class="info-box" style="margin:1rem 0 .6rem;">
+            <div class="info-box__label"><i data-lucide="loader-circle"></i> Loading quiz...</div>
+        </div>
+        <div class="card" style="margin-top:1rem;">
+            <div class="card__header">
+                <div class="card__title">
+                    <span class="tag tag--accent">Diagnostic Quiz</span>
+                    <h2 style="font-size:1.15rem;color:var(--text);">{{ topic.title }}</h2>
+                </div>
+                <p class="card__header-hint">Assess conceptual understanding and connect it to coding performance analytics.</p>
+                <p class="card__header-hint" style="margin-top:.25rem;">Language Track: <strong>{{ selected_language|capitalize }}</strong></p>
+            </div>
+            <div class="card__body">
+                {% if locked %}
+                <div class="feedback feedback--fail">
+                    <div class="feedback__header">
+                        <i data-lucide="lock"></i>
+                        This quiz becomes available after you attempt the topic.
+                    </div>
+                    <p class="feedback__submsg">{{ lock_reason }}</p>
+                    <p class="feedback__submsg">Complete more coding attempts on this topic, then come back.</p>
+                </div>
+                <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1rem;">
+                    <a href="{{ url_for('topic_page', topic_id=topic_id, lang=selected_language, return_mode=return_mode, ex=return_ex) }}" class="btn btn--secondary">View Lesson</a>
+                    <a href="{{ url_for(return_mode, lang=selected_language, ex=return_ex|int) }}" class="btn btn--primary">Continue Practice</a>
+                </div>
+                {% elif submitted %}
+                <div class="feedback {% if score_pct >= 60 %}feedback--pass{% else %}feedback--fail{% endif %}">
+                    <div class="feedback__header">
+                        <i data-lucide="bar-chart-3"></i>
+                        Quiz complete: {{ score }}/{{ total }} ({{ score_pct }}%)
+                    </div>
+                    <p class="feedback__submsg">This result has been saved and will be used in quiz-vs-coding research analysis.</p>
+                </div>
+                {% if next_guidance %}
+                <article class="feedback" style="margin-top:.8rem;border-left:4px solid var(--accent);">
+                    <div class="feedback__header"><i data-lucide="compass"></i> Next Suggested Step: {{ next_guidance.label }}</div>
+                    <p class="feedback__submsg">{{ next_guidance.message }}</p>
+                </article>
+                <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1rem;">
+                    <a href="{{ next_guidance.primary_url }}" class="btn btn--primary quiz-next-link">{{ next_guidance.primary_text }}</a>
+                    <a href="{{ next_guidance.secondary_url }}" class="btn btn--secondary quiz-next-link">{{ next_guidance.secondary_text }}</a>
+                </div>
+                {% else %}
+                <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1rem;">
+                    <a href="{{ url_for('topic_page', topic_id=topic_id, lang=selected_language, return_mode=return_mode, ex=return_ex) }}" class="btn btn--secondary">View Lesson</a>
+                    <a href="{{ url_for(return_mode, lang=selected_language, ex=return_ex|int) }}" class="btn btn--primary">Back to Exercise</a>
+                </div>
+                {% endif %}
+                {% else %}
+                <form method="post">
+                    {% for q in questions %}
+                    <div class="exercise-desc" style="margin-bottom:.8rem;">
+                        <div class="exercise-desc__label">Q{{ loop.index }}</div>
+                        <p style="margin:.35rem 0 .5rem;">{{ q.question }}</p>
+                        {% for option in q.options %}
+                        <label style="display:block;margin:.35rem 0;">
+                            <input type="radio" name="{{ q.id }}" value="{{ loop.index0 }}" required>
+                            {{ option }}
+                        </label>
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+                    <button type="submit" class="btn btn--primary">
+                        <i data-lucide="check-circle-2"></i> Submit Quiz
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</main>
+<div id="app-snackbar" class="snackbar" role="status" aria-live="polite"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const loading = document.getElementById('quiz-loading');
+        if (loading) loading.style.display = 'none';
+        const snackbar = document.getElementById('app-snackbar');
+        if (snackbar && {{ 'true' if submitted else 'false' }}) {
+            snackbar.textContent = 'Quiz result saved.';
+            snackbar.classList.add('snackbar--show');
+            setTimeout(function () {
+                snackbar.classList.remove('snackbar--show');
+            }, 2200);
+        }
+        document.querySelectorAll('.quiz-next-link').forEach(function (link) {
+            link.addEventListener('click', function () {
+                sessionStorage.setItem('quizGuidanceApplied', '1');
+            });
+        });
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    });
+</script>
+{% endblock %}

@@ -4,7 +4,8 @@ Handles: Session creation, mode selection
 """
 
 from flask import Blueprint, request, jsonify, session as flask_session
-from app.services import LearningJourney
+from app.data import normalize_language
+from app.services.learning_engine import LearningEngine
 from app.utils import requires_session
 import uuid
 
@@ -23,16 +24,17 @@ def create_session():
     
     try:
         # Initialize learning journey (creates session in MongoDB)
-        journey = LearningJourney(session_id)
+        journey = LearningEngine(session_id)
         
         # Store session ID in Flask session for cookie-based tracking
         flask_session['session_id'] = session_id
         flask_session.pop('user_mode', None)
+        flask_session.pop('mode', None)
         
         return jsonify({
             'success': True,
             'session_id': session_id,
-            'experiment_arm': journey.context['experiment_arm'],
+            'experiment_arm': journey.context.get('experiment_arm', 'control'),
             'message': 'Session created successfully',
         }), 201
         
@@ -53,9 +55,11 @@ def select_mode():
     Body: {mode: "static" or "interactive"}
     Response: {mode, updated_at}
     """
-    session_id = flask_session.get('session_id')
+    session_id = str(flask_session.get('session_id') or '')
     
-    mode = (request.get_json(silent=True) or {}).get('mode')
+    payload = request.get_json(silent=True) or {}
+    mode = payload.get('mode')
+    requested_language = payload.get('language')
     
     if not mode:
         return jsonify({
@@ -64,7 +68,7 @@ def select_mode():
         }), 400
     
     try:
-        journey = LearningJourney(session_id)
+        journey = LearningEngine(session_id)
         
         if not journey.set_user_mode(mode):
             return jsonify({
@@ -73,11 +77,15 @@ def select_mode():
             }), 400
 
         flask_session['user_mode'] = mode
+        flask_session['mode'] = mode
+        if requested_language:
+            flask_session['selected_language'] = normalize_language(requested_language)
         
         return jsonify({
             'success': True,
             'mode': mode,
-            'experiment_arm': journey.context['experiment_arm'],
+            'language': flask_session.get('selected_language', 'python'),
+            'experiment_arm': journey.context.get('experiment_arm', 'control'),
             'message': f'Mode set to {mode}',
         }), 200
         
@@ -97,16 +105,17 @@ def session_status():
     GET /auth/status
     Response: {session_id, mode, experiment_arm}
     """
-    session_id = flask_session.get('session_id')
+    session_id = str(flask_session.get('session_id') or '')
     
     try:
-        journey = LearningJourney(session_id)
+        journey = LearningEngine(session_id)
         
         return jsonify({
             'success': True,
             'session_id': session_id,
-            'user_mode': journey.context.get('user_mode'),
-            'experiment_arm': journey.context.get('experiment_arm'),
+            'mode': journey.context.get('mode') or journey.context.get('user_mode'),
+            'user_mode': journey.context.get('mode') or journey.context.get('user_mode'),
+            'experiment_arm': journey.context.get('experiment_arm', 'control'),
         }), 200
         
     except Exception as e:

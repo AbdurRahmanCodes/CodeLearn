@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}CodeLearn Research{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260325b') }}">
     {% block head %}{% endblock %}
 </head>
 
@@ -32,14 +32,27 @@
                 <a href="{{ url_for('index') }}" class="nav-link {% block nav_home %}{% endblock %}">
                     <i data-lucide="home"></i> Home
                 </a>
-                <a href="{{ url_for('research_info') }}" class="nav-link {% block nav_info %}{% endblock %}">
-                    <i data-lucide="info"></i> Research Info
+                <a href="{{ url_for('study_information') }}" class="nav-link {% block nav_info %}{% endblock %}">
+                    <i data-lucide="info"></i> Study Information
                 </a>
+                <a href="{{ url_for('topic_page', topic_id='variables') }}" class="nav-link {% block nav_learn %}{% endblock %}">
+                    <i data-lucide="book-open"></i> Learning Hub
+                </a>
+                {% if session.get('session_completed') %}
+                <a href="{{ url_for('my_progress_page') }}" class="nav-link {% block nav_my_progress %}{% endblock %}">
+                    <i data-lucide="line-chart"></i> My Progress
+                </a>
+                {% endif %}
                 {% block nav_exercise_links %}{% endblock %}
             </div>
 
             <!-- Right side -->
             <div class="navbar__right">
+                {% if session.get('session_id') %}
+                <span class="mode-pill" title="Your current learning session is active">
+                    Session Active · Ref {{ (session.get('session_id') or '')[:4]|upper }}
+                </span>
+                {% endif %}
                 {% block nav_progress %}{% endblock %}
                 {% block nav_mode_pill %}{% endblock %}
 
@@ -66,6 +79,7 @@
     <footer class="footer">
         COM748 Masters Research Project &nbsp;·&nbsp;
         <a href="{{ url_for('research_info') }}">About the Study</a> &nbsp;·&nbsp;
+        <a href="{{ url_for('methodology_page') }}">Methodology</a> &nbsp;·&nbsp;
         <a href="{{ url_for('db_status') }}">DB Status</a>
         {% if session.get('admin_logged_in') %}
         &nbsp;·&nbsp; <a href="{{ url_for('export_research_dataset') }}">Export Dataset</a>

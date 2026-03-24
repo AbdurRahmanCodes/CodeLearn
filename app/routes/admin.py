@@ -28,12 +28,12 @@ def get_admin_stats():
         global_pass_rate = (pass_attempts / total_attempts * 100) if total_attempts > 0 else 0
         
         # Count by arm
-        arm_a = mongo.db.session_context.count_documents({'experiment_arm': 'A_control'})
-        arm_b = mongo.db.session_context.count_documents({'experiment_arm': 'B_adaptive'})
+        arm_a = mongo.db.session_context.count_documents({'$or': [{'experiment_arm': 'control'}, {'experiment_arm': 'A_control'}, {'experiment_group': 'A_control'}]})
+        arm_b = mongo.db.session_context.count_documents({'$or': [{'experiment_arm': 'adaptive'}, {'experiment_arm': 'B_adaptive'}, {'experiment_group': 'B_adaptive'}]})
         
         # Count by mode
-        mode_static = mongo.db.session_context.count_documents({'user_mode': 'static'})
-        mode_interactive = mongo.db.session_context.count_documents({'user_mode': 'interactive'})
+        mode_static = mongo.db.session_context.count_documents({'$or': [{'mode': 'static'}, {'user_mode': 'static'}, {'group_type': 'static'}]})
+        mode_interactive = mongo.db.session_context.count_documents({'$or': [{'mode': 'interactive'}, {'user_mode': 'interactive'}, {'group_type': 'interactive'}]})
         
         return jsonify({
             'success': True,
@@ -71,12 +71,13 @@ def cohort_comparison():
     """
     try:
         def get_arm_stats(arm):
-            sessions_in_arm = mongo.db.session_context.count_documents({'experiment_arm': arm})
-            attempts_in_arm = mongo.db.attempts.count_documents({'experiment_arm': arm})
-            pass_in_arm = mongo.db.attempts.count_documents({'experiment_arm': arm, 'result': 'pass'})
+            arm_query = {'$or': [{'experiment_arm': arm}, {'experiment_group': 'A_control' if arm == 'control' else 'B_adaptive'}]}
+            sessions_in_arm = mongo.db.session_context.count_documents(arm_query)
+            attempts_in_arm = mongo.db.attempts.count_documents(arm_query)
+            pass_in_arm = mongo.db.attempts.count_documents({**arm_query, 'result': 'pass'})
             pass_rate = (pass_in_arm / attempts_in_arm * 100) if attempts_in_arm > 0 else 0
             
-            quizzes_in_arm = mongo.db.quiz_attempts.count_documents({'experiment_arm': arm})
+            quizzes_in_arm = mongo.db.quiz_attempts.count_documents(arm_query)
             
             return {
                 'sessions': sessions_in_arm,
@@ -89,8 +90,8 @@ def cohort_comparison():
         return jsonify({
             'success': True,
             'cohorts': {
-                'A_control': get_arm_stats('A_control'),
-                'B_adaptive': get_arm_stats('B_adaptive'),
+                'control': get_arm_stats('control'),
+                'adaptive': get_arm_stats('adaptive'),
             },
         }), 200
         

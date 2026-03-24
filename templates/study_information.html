@@ -1,0 +1,298 @@
+{% extends "base.html" %}
+{% block title %}Study Information — CodeLearn{% endblock %}
+{% block nav_info %}active{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div class="info-hero">
+    <div class="info-hero__inner">
+        <div class="info-hero__eyebrow"><i data-lucide="flask-conical"></i> COM748 Masters Research Project</div>
+        <h1 style="font-size:clamp(1.45rem,3vw,2rem);margin-bottom:.75rem;">Research Study Information</h1>
+        <p style="font-size:.95rem;color:var(--text-secondary);margin:0;max-width:620px;">
+            Complete information about this academic research study, study design, data collection practices, and your participation rights.
+        </p>
+    </div>
+</div>
+
+<!-- Tab Navigation -->
+<div class="info-page">
+    <div class="container container--narrow">
+        
+        <div style="display:flex;gap:.5rem;border-bottom:1px solid var(--border);margin-bottom:1.5rem;flex-wrap:wrap;padding-bottom:1rem;">
+            <button class="tab-btn active" onclick="switchTab(event, 'overview')" style="cursor:pointer;padding:.5rem 1rem;border:none;background:none;color:var(--text-muted);border-bottom:2px solid transparent;font-weight:500;transition:all .2s;">
+                <i data-lucide="info"></i> Overview
+            </button>
+            <button class="tab-btn" onclick="switchTab(event, 'design')" style="cursor:pointer;padding:.5rem 1rem;border:none;background:none;color:var(--text-muted);border-bottom:2px solid transparent;font-weight:500;transition:all .2s;">
+                <i data-lucide="git-branch"></i> Study Design
+            </button>
+            <button class="tab-btn" onclick="switchTab(event, 'data')" style="cursor:pointer;padding:.5rem 1rem;border:none;background:none;color:var(--text-muted);border-bottom:2px solid transparent;font-weight:500;transition:all .2s;">
+                <i data-lucide="database"></i> Data & Methodology
+            </button>
+            <button class="tab-btn" onclick="switchTab(event, 'privacy')" style="cursor:pointer;padding:.5rem 1rem;border:none;background:none;color:var(--text-muted);border-bottom:2px solid transparent;font-weight:500;transition:all .2s;">
+                <i data-lucide="shield"></i> Privacy & Ethics
+            </button>
+        </div>
+
+        <!-- TAB 1: OVERVIEW -->
+        <div id="overview" class="tab-content active" style="display:block;">
+            <div class="info-grid">
+
+                <div class="info-section info-section--purple">
+                    <div class="info-section__title"><i data-lucide="target"></i> Research Objective</div>
+                    <p>
+                        This study investigates whether <strong>immediate, automated feedback</strong> accelerates beginner
+                        programming skill development compared to traditional minimal-feedback environments.
+                    </p>
+                    <p style="margin-top:.625rem;">
+                        The central question: <em>Does feedback quality affect learning speed, problem-solving persistence,
+                        and understanding in novice programmers?</em>
+                    </p>
+                </div>
+
+                <div class="info-section info-section--teal">
+                    <div class="info-section__title"><i data-lucide="book-open"></i> What You'll Do</div>
+                    <p>Solve 7 beginner-friendly programming exercises (progressive complexity):</p>
+                    <ul style="margin-top:.625rem;font-size:.9rem;">
+                        <li><strong>EX01–EX02:</strong> Variables, data types, operators</li>
+                        <li><strong>EX03–EX04:</strong> String methods, conditional logic</li>
+                        <li><strong>EX05–EX06:</strong> Loops, iteration, collections</li>
+                        <li><strong>EX07:</strong> Functions (capstone)</li>
+                    </ul>
+                    <p style="margin-top:.625rem;font-size:.8rem;color:var(--text-muted);">
+                        Available in <strong>Python</strong> and <strong>JavaScript</strong>. No prior experience required.
+                        Estimated time: 20–40 minutes.
+                    </p>
+                </div>
+
+                <div class="info-section info-section--success">
+                    <div class="info-section__title"><i data-lucide="zap"></i> Two Learning Modes</div>
+                    <p><strong>Static Mode (Control)</strong></p>
+                    <p style="margin:.5rem 0 0 0;font-size:.9rem;color:var(--text-secondary);">
+                        Minimal feedback: only "Correct" or "Incorrect" per submission.
+                    </p>
+                    <p style="margin-top:.75rem;"><strong>Interactive Mode (Experimental)</strong></p>
+                    <p style="margin:.5rem 0 0 0;font-size:.9rem;color:var(--text-secondary);">
+                        Detailed feedback with error explanations, concept hints, and guided debugging.
+                    </p>
+                    <p style="margin-top:.625rem;font-size:.8rem;color:var(--text-muted);">
+                        You choose your mode. This intentional self-selection is part of the research design.
+                    </p>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- TAB 2: STUDY DESIGN -->
+        <div id="design" class="tab-content" style="display:none;">
+            <div class="info-grid">
+
+                <div class="info-section info-section--primary">
+                    <div class="info-section__title"><i data-lucide="split-square-horizontal"></i> A/B Experiment Design</div>
+                    <p style="margin-bottom:.625rem;">Within each learning mode, sessions are randomly assigned to one of two experiment arms:</p>
+                    <p style="margin:.625rem 0;"><strong>Arm A (Control):</strong></p>
+                    <p style="margin:.25rem 0 .625rem 0;font-size:.9rem;color:var(--text-secondary);">
+                        Standard learning flow. No adaptive recommendations.
+                    </p>
+                    <p style="margin:.625rem 0;"><strong>Arm B (Adaptive):</strong></p>
+                    <p style="margin:.25rem 0;font-size:.9rem;color:var(--text-secondary);">
+                        Activity-based recommendations triggered by detected errors or difficulty patterns.
+                    </p>
+                    <p style="margin-top:.75rem;font-size:.8rem;color:var(--text-muted);">
+                        Assignment is randomized to enable fair comparison of recommendation effectiveness.
+                    </p>
+                </div>
+
+                <div class="info-section info-section--warning">
+                    <div class="info-section__title"><i data-lucide="lightbulb"></i> Why Recommendations Appear</div>
+                    <p style="margin-bottom:.5rem;">If you're in Arm B, recommendations are triggered by:</p>
+                    <ul style="font-size:.9rem;">
+                        <li style="margin:.4rem 0;">Repeated failed attempts on the same task</li>
+                        <li style="margin:.4rem 0;">Detected syntax or runtime errors</li>
+                        <li style="margin:.4rem 0;">Logic mismatches indicating conceptual gaps</li>
+                        <li style="margin:.4rem 0;">Topic completion patterns</li>
+                    </ul>
+                    <p style="margin-top:.75rem;font-size:.8rem;color:var(--text-muted);">
+                        Recommendations suggest remedial topics, next learning progressions, or conceptual review.
+                    </p>
+                </div>
+
+                <div class="info-section info-section--error">
+                    <div class="info-section__title"><i data-lucide="layers"></i> Your Session Context</div>
+                    <p style="margin:.625rem 0;">These values are assigned when your session starts:</p>
+                    <table class="data-table" style="margin-top:.625rem;font-size:.9rem;">
+                        <tr>
+                            <td style="font-weight:600;">Learning Mode</td>
+                            <td>{{ session.get('group_type', 'Not selected yet') }}</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;">Experiment Arm</td>
+                            <td>{{ session.get('experiment_group', 'Assigned on start') }}</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;">Session ID</td>
+                            <td style="font-family:monospace;font-size:.8rem;color:var(--text-muted);">{{ session.get('session_id', 'Generated on participation') }}</td>
+                        </tr>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- TAB 3: DATA & METHODOLOGY -->
+        <div id="data" class="tab-content" style="display:none;">
+            <div class="info-grid">
+
+                <div class="info-section info-section--primary">
+                    <div class="info-section__title"><i data-lucide="database"></i> What Data is Collected</div>
+                    <p style="margin-bottom:.625rem;">For each code submission, we record:</p>
+                    <table class="data-table" style="margin-top:.625rem;font-size:.85rem;">
+                        <tr>
+                            <td style="font-weight:600;">session_id</td>
+                            <td>Anonymized session identifier</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;">group_type</td>
+                            <td>static or interactive</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;">exercise_id, attempt_number</td>
+                            <td>Which exercise, which attempt</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;">result</td>
+                            <td>pass or fail</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;">error_type</td>
+                            <td>syntax, runtime, logic, timeout</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;">execution_time_ms</td>
+                            <td>Code run duration</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;">timestamp</td>
+                            <td>When submitted (UTC)</td>
+                        </tr>
+                    </table>
+                    <p style="margin-top:.625rem;font-size:.8rem;color:var(--text-muted);">
+                        We also record quiz responses and which recommendations were shown.
+                    </p>
+                </div>
+
+                <div class="info-section info-section--teal">
+                    <div class="info-section__title"><i data-lucide="sigma"></i> Research Questions & Hypotheses</div>
+                    <p style="margin:.625rem 0;font-size:.9rem;"><strong>RQ1:</strong> Do adaptive recommendations improve pass rates?</p>
+                    <p style="margin:.625rem 0;font-size:.9rem;"><strong>RQ2:</strong> Which error patterns predict exercise difficulty?</p>
+                    <p style="margin:.625rem 0;font-size:.9rem;"><strong>RQ3:</strong> Does quiz performance correlate with coding success?</p>
+                    <p style="margin:.625rem 0;font-size:.9rem;"><strong>RQ4:</strong> Are JavaScript tasks harder than Python for beginners?</p>
+                </div>
+
+                <div class="info-section info-section--success">
+                    <div class="info-section__title"><i data-lucide="bar-chart-3"></i> Analysis & Export</div>
+                    <p>All data is analysed to compute:</p>
+                    <ul style="margin-top:.5rem;font-size:.9rem;">
+                        <li>Pass rates and attempt counts</li>
+                        <li>Time-to-first-pass by topic and language</li>
+                        <li>Error transition patterns</li>
+                        <li>Persistence and completion metrics</li>
+                    </ul>
+                    <p style="margin-top:.75rem;font-size:.8rem;color:var(--text-muted);">
+                        Results are exported for statistical analysis in SPSS, R, Python, or Excel.
+                    </p>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- TAB 4: PRIVACY & ETHICS -->
+        <div id="privacy" class="tab-content" style="display:none;">
+            <div class="info-grid">
+
+                <div class="info-section info-section--success">
+                    <div class="info-section__title"><i data-lucide="shield"></i> Privacy Guarantees</div>
+                    <ul>
+                        <li style="margin:.5rem 0;"><strong>No personal information collected:</strong> No names, emails, or device IDs.</li>
+                        <li style="margin:.5rem 0;"><strong>Anonymized sessions:</strong> Each session uses a randomly generated ID.</li>
+                        <li style="margin:.5rem 0;"><strong>No tracking:</strong> Only exercise, quiz, and recommendation events logged.</li>
+                        <li style="margin:.5rem 0;"><strong>Secure storage:</strong> Data stored in EU-region MongoDB Atlas with encryption.</li>
+                        <li style="margin:.5rem 0;"><strong>Your control:</strong> Close the browser anytime to end participation.</li>
+                    </ul>
+                </div>
+
+                <div class="info-section info-section--error">
+                    <div class="info-section__title"><i data-lucide="scale"></i> Ethics & Regulatory Status</div>
+                    <p style="margin-bottom:.625rem;">
+                        This study is approved for <strong>low-risk educational research</strong>. 
+                    </p>
+                    <ul style="font-size:.9rem;">
+                        <li style="margin:.5rem 0;">—  <strong>Category Z:</strong> No formal ethics consent form required (per university policy)</li>
+                        <li style="margin:.5rem 0;">—  <strong>Educational benefit clear:</strong> All feedback is pedagogically justified</li>
+                        <li style="margin:.5rem 0;">—  <strong>Participant agency:</strong> You choose mode and can exit anytime</li>
+                        <li style="margin:.5rem 0;">—  <strong>Transparent design:</strong> This page fully discloses what happens</li>
+                    </ul>
+                </div>
+
+                <div class="info-section info-section--warning">
+                    <div class="info-section__title"><i data-lucide="file-text"></i> Data Use & Publication</div>
+                    <p style="margin:.625rem 0;">
+                        All data is reported in <strong>anonymised aggregate form only</strong>:
+                    </p>
+                    <ul style="margin-top:.625rem;font-size:.9rem;">
+                        <li style="margin:.4rem 0;">Included in dissertation submission</li>
+                        <li style="margin:.4rem 0;">May accompany future academic publications</li>
+                        <li style="margin:.4rem 0;">Never identified by individual session</li>
+                        <li style="margin:.4rem 0;">Only aggregate statistics reported</li>
+                    </ul>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- CTA Footer -->
+<div class="info-page" style="margin-top:2rem;">
+    <div class="container container--narrow">
+        <div class="info-cta-bar">
+            <h3>Ready to participate?</h3>
+            <p>Return to the platform and select your learning mode. The session takes 20–40 minutes. Your participation helps advance research in programming education.</p>
+            <div style="display:flex;gap:.6rem;justify-content:center;flex-wrap:wrap;">
+                <a href="{{ url_for('index') }}" class="btn btn--primary">
+                    <i data-lucide="play"></i> Start Learning
+                </a>
+                <a href="{{ url_for('my_progress_page') }}" class="btn btn--secondary">
+                    <i data-lucide="line-chart"></i> View My Progress
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function switchTab(e, tabName) {
+    e.preventDefault();
+    
+    // Hide all tabs
+    const tabs = document.querySelectorAll('.tab-content');
+    tabs.forEach(t => t.style.display = 'none');
+    
+    // Remove active from all buttons
+    const buttons = document.querySelectorAll('.tab-btn');
+    buttons.forEach(b => {
+        b.style.borderBottomColor = 'transparent';
+        b.style.color = 'var(--text-muted)';
+    });
+    
+    // Show selected tab
+    document.getElementById(tabName).style.display = 'block';
+    
+    // Activate button
+    e.target.closest('.tab-btn').style.borderBottomColor = 'var(--primary)';
+    e.target.closest('.tab-btn').style.color = 'var(--primary)';
+}
+</script>
+
+{% endblock %}

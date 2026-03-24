@@ -1,221 +1,316 @@
-"""
-COM748 — Realistic Session Seed Script
-=======================================
-Generates realistic fake participant sessions directly into MongoDB Atlas.
+"""Seed realistic COM748 synthetic research data using canonical schema fields."""
 
-Design rationale (mirrors expected real-world findings):
-  Static  group: more attempts, lower pass rate, more syntax/runtime errors
-  Interactive group: fewer attempts, higher pass rate, faster error recovery
+from __future__ import annotations
 
-Sessions: 20 total (10 static, 10 interactive)
-Spread across: 7 days leading up to today, random hours 09:00–22:00
-
-Run once:  python seed_data.py
-To reset:  python seed_data.py --clear   (deletes all existing data first)
-"""
-
-import os, sys, uuid, random
+import argparse
+import os
+import random
+import sys
+import uuid
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from typing import Dict, List, Optional, Tuple
+
 from dotenv import load_dotenv
 from pymongo import MongoClient
 
-# ── Load .env ──────────────────────────────────────────────────────────────
-load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
-MONGO_URI = os.environ.get("MONGO_URI")
+from app.data import EXERCISES, QUIZ_BANK
 
-if not MONGO_URI:
-    print("ERROR: MONGO_URI not found in .env. Cannot seed data.")
-    sys.exit(1)
 
-client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=8000)
-client.admin.command("ping")
-db   = client["programming_research"]
-col  = db["attempts"]
-
-# ── Clear existing data if --clear flag passed ──────────────────────────────
-if "--clear" in sys.argv:
-    deleted = col.delete_many({})
-    print(f"Cleared {deleted.deleted_count} existing documents.")
-
-# ── Exercise definitions (must match app.py EXERCISES order) ──────────────
-EXERCISES = [
-    "ex01",  # Variables & Assignment  (easy)
-    "ex02",  # Arithmetic Operations   (easy-medium)
-    "ex03",  # String Operations       (medium)
-    "ex04",  # If / Else Conditions    (medium)
-    "ex05",  # While Loop              (medium-hard)
-    "ex06",  # For Loop & Lists        (medium-hard)
-    "ex07",  # Functions (Capstone)    (hard)
-]
-
-PLATFORM_VERSION = "1.2"
-
-# ── Error type weights ──────────────────────────────────────────────────────
-# Weights for each error type when a fail attempt occurs
-STATIC_ERROR_WEIGHTS      = [0.40, 0.30, 0.25, 0.05]  # syntax, runtime, logic, timeout
-INTERACTIVE_ERROR_WEIGHTS = [0.25, 0.25, 0.45, 0.05]  # fewer syntax errors (feedback helps)
-ERROR_TYPES = ["syntax", "runtime", "logic", "timeout"]
-
-# ── Exercise difficulty configuration ─────────────────────────────────────
-# (max_attempts, pass_probability_per_attempt)
-# Static group struggles more — needs more attempts before passing
-STATIC_EXERCISE_CONFIG = {
-    "ex01": (5,  0.60),  # Variables — quite doable but no hints
-    "ex02": (6,  0.50),  # Arithmetic — operators confuse some
-    "ex03": (7,  0.45),  # Strings — methods not obvious without feedback
-    "ex04": (7,  0.40),  # Conditions — logic errors common
-    "ex05": (8,  0.35),  # While — infinite loop risk
-    "ex06": (8,  0.35),  # For/Lists — index confusion
-    "ex07": (9,  0.30),  # Functions — hardest capstone
-}
-# Interactive group passes faster — immediate feedback helps
-INTERACTIVE_EXERCISE_CONFIG = {
-    "ex01": (3,  0.80),
-    "ex02": (4,  0.70),
-    "ex03": (4,  0.65),
-    "ex04": (5,  0.60),
-    "ex05": (5,  0.55),
-    "ex06": (6,  0.50),
-    "ex07": (6,  0.45),
+PLATFORM_VERSION = "2.1"
+ERROR_WEIGHTS = {
+    "python": [("syntax", 0.45), ("logic", 0.25), ("runtime", 0.20), ("timeout", 0.10)],
+    "javascript": [("syntax", 0.50), ("logic", 0.22), ("runtime", 0.20), ("timeout", 0.08)],
 }
 
-# ── Timestamp helper ───────────────────────────────────────────────────────
-def session_start(days_ago_min=1, days_ago_max=7):
-    """Random timestamp in the past 1-7 days, between 09:00 and 22:00."""
-    days_back = random.randint(days_ago_min, days_ago_max)
-    base = datetime.now(timezone.utc) - timedelta(days=days_back)
-    base = base.replace(hour=random.randint(9, 21), minute=random.randint(0, 59),
-                        second=0, microsecond=0)
-    return base
 
-# ── Simulate one participant session ──────────────────────────────────────
-def simulate_session(group_type: str, session_date: datetime):
-    """
-    Simulate a plausible participant session and return list of attempt documents.
-    
-    Participant behaviour:
-      - Works through exercises sequentially
-      - May skip remaining exercises if frustrated (drop-off behaviour)
-      - Each exercise: tries up to max_attempts times then moves on
-      - Time between attempts: 30s–3min (realistic thinking time)
-    """
+@dataclass(frozen=True)
+class LearnerProfile:
+    name: str
+    base_pass_boost: float
+    drop_prob: float
+    quiz_range: Tuple[float, float]
+    speed_range_s: Tuple[int, int]
+
+
+PROFILES: Dict[str, LearnerProfile] = {
+    "novice": LearnerProfile("novice", -0.10, 0.17, (30.0, 74.0), (70, 240)),
+    "intermediate": LearnerProfile("intermediate", 0.00, 0.08, (50.0, 88.0), (40, 170)),
+    "advanced": LearnerProfile("advanced", 0.10, 0.03, (68.0, 98.0), (25, 110)),
+}
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Seed synthetic research data into MongoDB.")
+    parser.add_argument("--sessions", type=int, default=120, help="Number of synthetic participant sessions.")
+    parser.add_argument("--days-back", type=int, default=21, help="Generate timestamps within the last N days.")
+    parser.add_argument("--seed", type=int, default=748, help="Random seed for reproducible data.")
+    parser.add_argument("--clear", action="store_true", help="Clear target collections before insert.")
+    return parser.parse_args()
+
+
+def _load_collections():
+    root = os.path.dirname(os.path.abspath(__file__))
+    load_dotenv(os.path.join(root, ".env"))
+    mongo_uri = os.environ.get("MONGO_URI")
+    if not mongo_uri:
+        print("ERROR: MONGO_URI missing in .env")
+        sys.exit(1)
+
+    client = MongoClient(mongo_uri, serverSelectionTimeoutMS=8000)
+    client.admin.command("ping")
+    db = client["programming_research"]
+    return db["attempts"], db["quiz_attempts"], db["recommendations_log"]
+
+
+def _random_profile() -> LearnerProfile:
+    key = random.choices(["novice", "intermediate", "advanced"], weights=[0.45, 0.40, 0.15])[0]
+    return PROFILES[key]
+
+
+def _session_start(days_back: int) -> datetime:
+    now = datetime.now(timezone.utc)
+    delta_days = random.randint(0, max(1, days_back))
+    base = now - timedelta(days=delta_days)
+    return base.replace(
+        hour=random.randint(8, 22),
+        minute=random.randint(0, 59),
+        second=random.randint(0, 59),
+        microsecond=0,
+    )
+
+
+def _legacy_arm(arm: str) -> str:
+    return "B_adaptive" if arm == "adaptive" else "A_control"
+
+
+def _pick_error(language: str) -> str:
+    lang = language if language in ERROR_WEIGHTS else "python"
+    values = ERROR_WEIGHTS[lang]
+    labels = [v[0] for v in values]
+    weights = [v[1] for v in values]
+    return random.choices(labels, weights=weights)[0]
+
+
+def _base_pass_probability(mode: str, arm: str, profile: LearnerProfile, language: str) -> float:
+    p = 0.34 if mode == "static" else 0.52
+    if arm == "adaptive":
+        p += 0.08
+    if language == "javascript":
+        p -= 0.05
+    p += profile.base_pass_boost
+    return max(0.10, min(p, 0.90))
+
+
+def _recommendation_bundle(error_type: Optional[str], attempt_no: int, passed: bool) -> List[Dict[str, str]]:
+    if passed:
+        return []
+
+    recs: List[Dict[str, str]] = []
+    if error_type == "syntax":
+        syntax_intensity = "heavy" if attempt_no >= 2 else "medium"
+        recs.append({"type": "video", "intensity": syntax_intensity, "reason": "repeated_syntax_errors"})
+    elif error_type == "logic":
+        recs.append({"type": "quiz", "intensity": "medium", "reason": "logic_mismatch_detected"})
+    elif error_type == "runtime":
+        recs.append({"type": "lesson", "intensity": "light", "reason": "runtime_error_detected"})
+    elif error_type == "timeout":
+        recs.append({"type": "lesson", "intensity": "medium", "reason": "timeout_detected"})
+
+    if attempt_no >= 3:
+        recs.append({"type": "exercise", "intensity": "heavy", "reason": "repeated_failures_with_escalation"})
+    elif attempt_no >= 2:
+        recs.append({"type": "exercise", "intensity": "medium", "reason": "multiple_failures"})
+
+    return recs[:3]
+
+
+def _next_step_action(passed: bool, error_type: Optional[str], attempt_no: int) -> str:
+    if passed and attempt_no == 1:
+        return "harder_level"
+    if passed:
+        return "topic_advance"
+    if error_type == "syntax":
+        return "targeted_remediation"
+    if attempt_no >= 3:
+        return "easier_level"
+    return "same_level"
+
+
+def generate_session(mode: str, arm: str, profile: LearnerProfile, days_back: int):
     session_id = str(uuid.uuid4())
-    config = STATIC_EXERCISE_CONFIG if group_type == "static" else INTERACTIVE_EXERCISE_CONFIG
-    error_weights = STATIC_ERROR_WEIGHTS if group_type == "static" else INTERACTIVE_ERROR_WEIGHTS
-    
-    docs = []
-    current_time = session_date
-    
-    # Static participants more likely to drop off after failing (less motivation)
-    dropout_probability = 0.12 if group_type == "static" else 0.06
-    
-    for exercise_id in EXERCISES:
-        # Random drop-off: participant may stop before finishing all exercises
-        if docs and random.random() < dropout_probability:
-            break  # simulates participant closing tab
-        
-        max_attempts, pass_prob_per_attempt = config[exercise_id]
-        attempt_num = 0
-        passed_this_exercise = False
-        
-        while attempt_num < max_attempts and not passed_this_exercise:
-            attempt_num += 1
-            thinking_time = timedelta(seconds=random.randint(30, 180))
-            current_time += thinking_time
-            
-            did_pass = random.random() < pass_prob_per_attempt
-            
-            # Error probability increases for later attempts (tried simple things first)
-            if did_pass:
-                error_type = None
-                result = "pass"
-                passed_this_exercise = True
-                exec_time = random.uniform(50, 400)
-            else:
-                error_type = random.choices(ERROR_TYPES, weights=error_weights)[0]
-                result = "fail"
-                exec_time = random.uniform(100, 2000) if error_type == "timeout" else random.uniform(30, 300)
-            
-            docs.append({
-                "session_id":        session_id,
-                "group_type":        group_type,
-                "exercise_id":       exercise_id,
-                "attempt_number":    attempt_num,
-                "result":            result,
-                "error_type":        error_type,
-                "timestamp":         current_time,
-                "execution_time_ms": round(exec_time, 1),
-                "platform_version":  PLATFORM_VERSION,
-            })
-    
-    return docs
+    timeline = _session_start(days_back)
 
-# ── Generate all sessions ──────────────────────────────────────────────────
-print("\nCOM748 — Seeding realistic participant data...")
-print("="*60)
+    attempts: List[dict] = []
+    quizzes: List[dict] = []
+    recommendations: List[dict] = []
 
-all_docs = []
-session_log = []
+    for ex in [{"id": e["id"], "topic": e["topic"], "language": e["language"]} for e in EXERCISES]:
+        if attempts and random.random() < profile.drop_prob:
+            break
 
-# 10 Static sessions
-for i in range(10):
-    date = session_start(days_ago_min=1, days_ago_max=7)
-    docs = simulate_session("static", date)
-    all_docs.extend(docs)
-    exercises_attempted = len({d["exercise_id"] for d in docs})
-    exercises_passed    = len({d["exercise_id"] for d in docs if d["result"] == "pass"})
-    session_log.append({
-        "session_id": docs[0]["session_id"][:8] + "...",
-        "group": "static",
-        "attempts": len(docs),
-        "exercises": f"{exercises_attempted}/7",
-        "passed": f"{exercises_passed}/7",
-    })
-    print(f"  Static  session {i+1:02d}: {len(docs):2d} attempts, "
-          f"{exercises_attempted}/7 exercises, {exercises_passed} passed")
+        max_attempts = random.randint(2, 5) if arm == "control" else random.randint(3, 8)
+        base_p = _base_pass_probability(mode, arm, profile, ex["language"])
 
-# 10 Interactive sessions
-for i in range(10):
-    date = session_start(days_ago_min=1, days_ago_max=7)
-    docs = simulate_session("interactive", date)
-    all_docs.extend(docs)
-    exercises_attempted = len({d["exercise_id"] for d in docs})
-    exercises_passed    = len({d["exercise_id"] for d in docs if d["result"] == "pass"})
-    session_log.append({
-        "session_id": docs[0]["session_id"][:8] + "...",
-        "group": "interactive",
-        "attempts": len(docs),
-        "exercises": f"{exercises_attempted}/7",
-        "passed": f"{exercises_passed}/7",
-    })
-    print(f"  Interactive session {i+1:02d}: {len(docs):2d} attempts, "
-          f"{exercises_attempted}/7 exercises, {exercises_passed} passed")
+        for attempt_no in range(1, max_attempts + 1):
+            timeline += timedelta(seconds=random.randint(*profile.speed_range_s))
 
-# ── Insert into MongoDB ────────────────────────────────────────────────────
-print(f"\nInserting {len(all_docs)} attempt documents into MongoDB Atlas...")
-result = col.insert_many(all_docs)
-print(f"Inserted {len(result.inserted_ids)} documents successfully.")
+            # Adaptive group has stronger improvement trajectory across repeated attempts.
+            learning_gain = 0.14 if arm == "adaptive" else 0.03
+            pass_probability = min(base_p + (attempt_no * learning_gain), 0.96)
+            passed = random.random() < pass_probability
+            error_type = None if passed else _pick_error(ex["language"])
 
-# ── Summary statistics ─────────────────────────────────────────────────────
-static_docs      = [d for d in all_docs if d["group_type"] == "static"]
-interactive_docs = [d for d in all_docs if d["group_type"] == "interactive"]
+            recs = _recommendation_bundle(error_type, attempt_no, passed) if arm == "adaptive" else []
+            rec_types = [r["type"] for r in recs]
+            next_action = _next_step_action(passed, error_type, attempt_no) if arm == "adaptive" else "same_level"
 
-def pass_rate(docs):
-    if not docs: return 0
-    return round(len([d for d in docs if d["result"] == "pass"]) / len(docs) * 100, 1)
+            for rec in recs:
+                recommendations.append(
+                    {
+                        "session_id": session_id,
+                        "mode": mode,
+                        "experiment_arm": arm,
+                        "exercise_id": ex["id"],
+                        "topic": ex["topic"],
+                        "recommendation_type": rec["type"],
+                        "title": rec["type"].replace("_", " ").title(),
+                        "reason": rec["reason"],
+                        "resource_url": "/",
+                        "intensity": rec["intensity"],
+                        "timestamp": timeline,
+                        # Backward-compat aliases
+                        "group_type": mode,
+                        "experiment_group": _legacy_arm(arm),
+                    }
+                )
 
-def avg_attempts(docs):
-    if not docs: return 0
-    # Average attempt number across sessions/exercises
-    return round(sum(d["attempt_number"] for d in docs) / len(docs), 1)
+            exec_ms = round(random.uniform(90, 3200) if error_type == "timeout" else random.uniform(55, 720), 1)
+            attempts.append(
+                {
+                    "session_id": session_id,
+                    "user_id": session_id,
+                    "mode": mode,
+                    "experiment_arm": arm,
+                    "exercise_id": ex["id"],
+                    "topic": ex["topic"],
+                    "language": ex["language"],
+                    "programming_language": ex["language"],
+                    "attempt_number": attempt_no,
+                    "attempts": attempt_no,
+                    "result": "pass" if passed else "fail",
+                    "success": passed,
+                    "error_type": error_type,
+                    "recommendation_types": rec_types,
+                    "recommendations_triggered": rec_types,
+                    "recommendation_count": len(rec_types),
+                    "recommendation_shown": bool(rec_types),
+                    "next_step": {
+                        "action": next_action,
+                        "support_action": "lesson" if error_type in ("syntax", "timeout") else "exercise",
+                        "profile_based": True,
+                    },
+                    "topic_quiz_score": None,
+                    "timestamp": timeline,
+                    "execution_time_ms": exec_ms,
+                    "time_taken": round(exec_ms / 1000.0, 3),
+                    "platform_version": PLATFORM_VERSION,
+                    "learner_profile": profile.name,
+                    # Backward-compat aliases
+                    "group_type": mode,
+                    "experiment_group": _legacy_arm(arm),
+                }
+            )
 
-print("\n" + "="*60)
-print("SUMMARY")
-print("="*60)
-print(f"  Total documents:    {len(all_docs)}")
-print(f"  Static  sessions:   10  ({len(static_docs)} attempts, pass rate: {pass_rate(static_docs)}%)")
-print(f"  Interactive sessions: 10  ({len(interactive_docs)} attempts, pass rate: {pass_rate(interactive_docs)}%)")
-print(f"  Avg attempts — Static:      {avg_attempts(static_docs)}")
-print(f"  Avg attempts — Interactive: {avg_attempts(interactive_docs)}")
-print("\nDone! Open http://127.0.0.1:5000/admin-login to see the dashboard.")
-print("="*60)
+            if passed:
+                break
+
+    quiz_topics = list(QUIZ_BANK.keys())
+    quiz_prob = 0.55 if profile.name == "novice" else 0.72 if profile.name == "intermediate" else 0.86
+    for topic in quiz_topics:
+        if random.random() > quiz_prob:
+            continue
+        timeline += timedelta(seconds=random.randint(40, 210))
+        score_pct = round(random.uniform(*profile.quiz_range), 1)
+        quizzes.append(
+            {
+                "session_id": session_id,
+                "mode": mode,
+                "experiment_arm": arm,
+                "topic": topic,
+                "score": int(round(score_pct / 100 * 3)),
+                "total_questions": 3,
+                "score_pct": score_pct,
+                "answers": [],
+                "timestamp": timeline,
+                "learner_profile": profile.name,
+                # Backward-compat aliases
+                "group_type": mode,
+                "experiment_group": _legacy_arm(arm),
+            }
+        )
+
+    latest_quiz = {q["topic"]: q["score_pct"] for q in quizzes}
+    for row in attempts:
+        if row["topic"] in latest_quiz:
+            row["topic_quiz_score"] = latest_quiz[row["topic"]]
+
+    return attempts, quizzes, recommendations, profile.name
+
+
+def main() -> None:
+    args = parse_args()
+    random.seed(args.seed)
+
+    attempts_col, quiz_col, recommendations_col = _load_collections()
+    if args.clear:
+        print(f"Cleared attempts: {attempts_col.delete_many({}).deleted_count}")
+        print(f"Cleared quiz_attempts: {quiz_col.delete_many({}).deleted_count}")
+        print(f"Cleared recommendations_log: {recommendations_col.delete_many({}).deleted_count}")
+
+    sessions = max(4, args.sessions)
+    all_attempts: List[dict] = []
+    all_quizzes: List[dict] = []
+    all_recommendations: List[dict] = []
+    profile_counter = {"novice": 0, "intermediate": 0, "advanced": 0}
+
+    modes = ["static", "interactive"]
+    arms = ["control", "adaptive"]
+    mode_idx = 0
+    arm_idx = 0
+
+    for _ in range(sessions):
+        mode = modes[mode_idx]
+        arm = arms[arm_idx]
+        profile = _random_profile()
+        rows_a, rows_q, rows_r, p_name = generate_session(mode, arm, profile, args.days_back)
+        profile_counter[p_name] += 1
+
+        all_attempts.extend(rows_a)
+        all_quizzes.extend(rows_q)
+        all_recommendations.extend(rows_r)
+
+        mode_idx = 1 - mode_idx
+        arm_idx = 1 - arm_idx
+
+    if all_attempts:
+        attempts_col.insert_many(all_attempts)
+    if all_quizzes:
+        quiz_col.insert_many(all_quizzes)
+    if all_recommendations:
+        recommendations_col.insert_many(all_recommendations)
+
+    print("\nSynthetic seeding complete")
+    print("=" * 60)
+    print(f"Sessions generated: {sessions}")
+    print(f"Attempt docs inserted: {len(all_attempts)}")
+    print(f"Quiz docs inserted: {len(all_quizzes)}")
+    print(f"Recommendation docs inserted: {len(all_recommendations)}")
+    print("Learner profile mix:")
+    print(f"  novice: {profile_counter['novice']}")
+    print(f"  intermediate: {profile_counter['intermediate']}")
+    print(f"  advanced: {profile_counter['advanced']}")
+
+
+if __name__ == "__main__":
+    main()

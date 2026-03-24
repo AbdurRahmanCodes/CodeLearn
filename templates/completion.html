@@ -15,6 +15,9 @@
             Your anonymous session data has been recorded for the COM748 programming learning study.
             Your contribution matters to this research.
         </p>
+        <p style="margin-top:-.6rem;margin-bottom:1.2rem;font-size:.88rem;color:var(--text-secondary);">
+            You have successfully completed the session. Your data contributes to research on adaptive learning effectiveness.
+        </p>
 
         <!-- Mode badge -->
         <div style="margin-bottom:1.5rem;">
@@ -22,6 +25,10 @@
                 class="mode-pill {% if stats.group_type == 'static' %}mode-pill--static{% else %}mode-pill--interactive{% endif %}">
                 {{ stats.group_type | capitalize }} Mode
             </span>
+            <span class="mode-pill" style="margin-left:.4rem;">{{ selected_language|capitalize }} Track</span>
+            {% if stats.experiment_group %}
+            <span class="mode-pill" style="margin-left:.4rem;">{{ stats.experiment_group }}</span>
+            {% endif %}
         </div>
 
         <!-- Completion rate bar -->
@@ -54,9 +61,26 @@
                         style="font-size:1rem;margin-left:2px;">min</small></div>
                 <div class="completion-stat__lbl">Session duration</div>
             </div>
+            {% if stats.recommendation_count is defined %}
+            <div class="completion-stat">
+                <div class="completion-stat__val">{% if stats.mode == 'static' %}N/A{% else %}{{ stats.recommendation_count }}{% endif %}</div>
+                <div class="completion-stat__lbl">Adaptive recommendations</div>
+            </div>
+            {% endif %}
+            {% if stats.avg_quiz_score is not none %}
+            <div class="completion-stat">
+                <div class="completion-stat__val">{{ stats.avg_quiz_score }}%</div>
+                <div class="completion-stat__lbl">Average quiz score</div>
+            </div>
+            {% endif %}
         </div>
 
         <div style="border-top:1px solid var(--border);padding-top:1.25rem;margin-top:.5rem;">
+            {% if stats.mode == 'static' %}
+            <p style="font-size:.8rem;color:var(--text-muted);margin-bottom:.55rem;">
+                Static mode intentionally disables adaptive recommendations. This is expected for the control condition.
+            </p>
+            {% endif %}
             <p style="font-size:.8rem;color:var(--text-muted);margin-bottom:1.25rem;">
                 All data is stored anonymously. No personal information has been collected.
                 This session is now complete.

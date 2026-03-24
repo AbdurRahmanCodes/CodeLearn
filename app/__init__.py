@@ -6,6 +6,7 @@ Flask application factory pattern for modular architecture
 from flask import Flask
 from flask_pymongo import PyMongo
 import os
+import secrets
 import markdown as md_lib
 from dotenv import load_dotenv
 
@@ -15,7 +16,7 @@ load_dotenv()
 mongo = PyMongo()
 
 
-def _build_mongo_uri(base_uri: str, db_name: str) -> str:
+def _build_mongo_uri(base_uri: str | None, db_name: str) -> str | None:
     """Attach a default database to Mongo URI when one is not present."""
     if not base_uri:
         return base_uri
@@ -39,10 +40,13 @@ def create_app():
         static_url_path="/static",
     )
     mongo_uri = _build_mongo_uri(os.getenv('MONGO_URI'), 'programming_research')
+    secret_key = os.getenv('SECRET_KEY') or secrets.token_hex(32)
     
     # Configuration
     app.config['MONGO_URI'] = mongo_uri
-    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
+    app.config['SECRET_KEY'] = secret_key
+    app.config['ADMIN_USERNAME'] = os.getenv('ADMIN_USERNAME', '')
+    app.config['ADMIN_PASSWORD'] = os.getenv('ADMIN_PASSWORD', '')
     app.config['JSON_SORT_KEYS'] = False
 
     @app.template_filter('md')
@@ -65,44 +69,16 @@ def create_app():
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(admin_bp)
 
-    # Legacy-compatible page endpoints migrated from monolith.
-    app.add_url_rule('/', endpoint='index', view_func=web_pages.index)
-    app.add_url_rule('/static-mode', endpoint='static_mode', view_func=web_pages.static_mode)
-    app.add_url_rule('/interactive-mode', endpoint='interactive_mode', view_func=web_pages.interactive_mode)
-    app.add_url_rule('/submit', endpoint='submit', view_func=web_pages.submit, methods=['POST'])
-    app.add_url_rule('/db-status', endpoint='db_status', view_func=web_pages.db_status)
-    app.add_url_rule('/admin-login', endpoint='admin_login', view_func=web_pages.admin_login, methods=['GET', 'POST'])
-    app.add_url_rule('/admin-logout', endpoint='admin_logout', view_func=web_pages.admin_logout)
-    app.add_url_rule('/admin-dashboard', endpoint='admin_dashboard', view_func=web_pages.admin_dashboard)
-    app.add_url_rule('/complete', endpoint='session_complete', view_func=web_pages.session_complete)
-    app.add_url_rule('/research-info', endpoint='research_info', view_func=web_pages.research_info)
-    app.add_url_rule('/methodology', endpoint='methodology_page', view_func=web_pages.methodology_page)
-    app.add_url_rule('/learn/<topic_id>', endpoint='topic_page', view_func=web_pages.topic_page)
-    app.add_url_rule('/quiz/<topic_id>', endpoint='topic_quiz', view_func=web_pages.topic_quiz, methods=['GET', 'POST'])
-    app.add_url_rule('/export-research-dataset', endpoint='export_research_dataset', view_func=web_pages.export_research_dataset)
-    app.add_url_rule('/export-session-summary', endpoint='export_session_summary', view_func=web_pages.export_session_summary)
-
-    # Stats APIs used by admin dashboard charts.
-    app.add_url_rule('/api/stats/summary', endpoint='api_stats_summary', view_func=stats_api.api_stats_summary)
-    app.add_url_rule('/api/stats/research-snapshot', endpoint='api_research_snapshot', view_func=stats_api.api_research_snapshot)
-    app.add_url_rule('/api/stats/pass-rate', endpoint='api_stats_pass_rate', view_func=stats_api.api_stats_pass_rate)
-    app.add_url_rule('/api/stats/attempts', endpoint='api_stats_attempts', view_func=stats_api.api_stats_attempts)
-    app.add_url_rule('/api/stats/errors', endpoint='api_stats_errors', view_func=stats_api.api_stats_errors)
-    app.add_url_rule('/api/stats/learning-curve', endpoint='api_stats_learning_curve', view_func=stats_api.api_stats_learning_curve)
-    app.add_url_rule('/api/stats/language-difficulty', endpoint='api_stats_language_difficulty', view_func=stats_api.api_stats_language_difficulty)
-    app.add_url_rule('/api/stats/topic-success', endpoint='api_stats_topic_success', view_func=stats_api.api_stats_topic_success)
-    app.add_url_rule('/api/stats/quiz-performance', endpoint='api_stats_quiz_performance', view_func=stats_api.api_stats_quiz_performance)
-    app.add_url_rule('/api/stats/recommendation-effectiveness', endpoint='api_stats_recommendation_effectiveness', view_func=stats_api.api_stats_recommendation_effectiveness)
-    app.add_url_rule('/api/stats/session-quality', endpoint='api_stats_session_quality', view_func=stats_api.api_stats_session_quality)
-    app.add_url_rule('/api/stats/time-to-pass', endpoint='api_stats_time_to_pass', view_func=stats_api.api_stats_time_to_pass)
-    app.add_url_rule('/api/stats/persistence', endpoint='api_stats_persistence', view_func=stats_api.api_stats_persistence)
-    app.add_url_rule('/api/stats/error-transitions', endpoint='api_stats_error_transitions', view_func=stats_api.api_stats_error_transitions)
+    web_pages.register_web_page_routes(app)
+    stats_api.register_stats_routes(app)
     
     @app.route('/health')
     def health():
         """Health check endpoint"""
         try:
             # Check MongoDB connection
+            if mongo.db is None:
+                return {'status': 'unhealthy', 'error': 'MongoDB not initialized'}, 500
             mongo.db.command('ping')
             return {'status': 'healthy', 'mongodb': 'connected'}, 200
         except Exception as e:

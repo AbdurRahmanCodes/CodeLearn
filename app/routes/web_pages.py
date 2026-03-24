@@ -3,237 +3,28 @@ Web pages routes migrated from legacy monolith.
 Preserves existing template route names and user flow.
 """
 
-import csv
-import io
-import os
 import random
 import uuid
-from datetime import datetime, timezone
+import io
+from hmac import compare_digest
 
-from flask import jsonify, redirect, render_template, request, session, url_for, send_file
+from flask import current_app, jsonify, redirect, render_template, request, session, url_for, send_file
 
 from app import mongo
-from app.services.exercise_service import ExerciseService
-
-EXPERIMENT_GROUPS = ("A_control", "B_adaptive")
-
-LANGUAGE_LABELS = {
-    "python": "Python",
-    "javascript": "JavaScript",
-}
-
-TOPICS = {
-    "variables": {
-        "title": "Variables and Assignment",
-        "summary": "Store and update values using variables.",
-        "video_url": "https://www.youtube.com/embed/kqtD5dpn9C8",
-        "syntax_guide": "Use clear variable names and check quote usage in string literals.",
-    },
-    "arithmetic": {
-        "title": "Arithmetic Operations",
-        "summary": "Apply operators such as +, -, *, / and precedence rules.",
-        "video_url": "https://www.youtube.com/embed/jZ5nY2x7uZw",
-        "syntax_guide": "Check parentheses and operator order when results are unexpected.",
-    },
-    "strings": {
-        "title": "String Operations",
-        "summary": "Use built-in methods and length operations on text.",
-        "video_url": "https://www.youtube.com/embed/R8rmfD9Y5-c",
-        "syntax_guide": "Remember quotes and method call brackets such as .upper() or .length.",
-    },
-    "conditions": {
-        "title": "Conditional Logic",
-        "summary": "Build if/else decisions for branching behavior.",
-        "video_url": "https://www.youtube.com/embed/f4KOjWS_KZs",
-        "syntax_guide": "Check condition operators and block formatting in if/else statements.",
-    },
-    "loops": {
-        "title": "Loops and Iteration",
-        "summary": "Repeat actions with while and for loops.",
-        "video_url": "https://www.youtube.com/embed/94UHCEmprCY",
-        "syntax_guide": "Ensure loop counters change so the loop terminates.",
-    },
-    "functions": {
-        "title": "Functions",
-        "summary": "Encapsulate reusable logic with function definitions.",
-        "video_url": "https://www.youtube.com/embed/NSbOtYzIQI0",
-        "syntax_guide": "Define parameters clearly and ensure return values are used correctly.",
-    },
-}
-
-QUIZ_BANK = {
-    "variables": [
-        {
-            "id": "qv1",
-            "question": "Which statement correctly stores the text hello in a variable x in Python?",
-            "options": ["x = hello", "x = \"hello\"", "string x = hello", "x := text(hello)"],
-            "answer": 1,
-        },
-        {
-            "id": "qv2",
-            "question": "What is the type of value 20 in Python?",
-            "options": ["str", "float", "int", "bool"],
-            "answer": 2,
-        },
-        {
-            "id": "qv3",
-            "question": "In JavaScript, which keyword declares a block-scoped variable?",
-            "options": ["int", "var", "let", "define"],
-            "answer": 2,
-        },
-    ],
-    "conditions": [
-        {
-            "id": "qc1",
-            "question": "Which operator checks equality in JavaScript?",
-            "options": ["=", "==", "===", "!="],
-            "answer": 2,
-        },
-        {
-            "id": "qc2",
-            "question": "What does this print in Python if x=4? if x>5: print('A') else: print('B')",
-            "options": ["A", "B", "A then B", "Nothing"],
-            "answer": 1,
-        },
-        {
-            "id": "qc3",
-            "question": "Which branch runs when a condition is false?",
-            "options": ["if", "else", "def", "return"],
-            "answer": 1,
-        },
-    ],
-    "loops": [
-        {
-            "id": "ql1",
-            "question": "What is the main risk with a while loop?",
-            "options": ["Memory leak", "Infinite loop", "Syntax cannot compile", "No output"],
-            "answer": 1,
-        },
-        {
-            "id": "ql2",
-            "question": "In JavaScript, which loop iterates over each element of an array?",
-            "options": ["while", "for", "for...of", "switch"],
-            "answer": 2,
-        },
-        {
-            "id": "ql3",
-            "question": "In Python, range(1, 4) produces:",
-            "options": ["1,2,3", "1,2,3,4", "0,1,2,3", "Only 4"],
-            "answer": 0,
-        },
-    ],
-    "functions": [
-        {
-            "id": "qf1",
-            "question": "What does a function return if there is no return statement in Python?",
-            "options": ["0", "False", "None", "Empty string"],
-            "answer": 2,
-        },
-        {
-            "id": "qf2",
-            "question": "Which line defines a JavaScript function add(a, b)?",
-            "options": ["function add(a, b) { }", "def add(a,b):", "func add(a,b)", "add = function:"],
-            "answer": 0,
-        },
-        {
-            "id": "qf3",
-            "question": "Why are functions useful in programming?",
-            "options": ["They reduce reuse", "They avoid logic", "They improve reuse and readability", "They only print text"],
-            "answer": 2,
-        },
-    ],
-}
-
-EXERCISES = [
-    {
-        "id": "ex01",
-        "topic": "variables",
-        "language": "python",
-        "title": "Variables & Assignment",
-        "description": "Create variable name (string) and age (20), then print each on a new line.",
-        "example": "Output:\nAlice\n20",
-        "starter_code": "# Write your code below\n",
-        "explanation": "Variables store values you can reuse. Use quotes for strings and print() to output values.",
-        "test_cases": [
-            {"input": "", "check_type": "variable", "var": "name", "expected_type": "str"},
-            {"input": "", "check_type": "variable", "var": "age", "expected_type": "int"},
-        ],
-    },
-    {
-        "id": "ex02",
-        "topic": "arithmetic",
-        "language": "javascript",
-        "title": "Arithmetic Operations",
-        "description": "Set width=8, height=5, compute area and print it.",
-        "example": "Output:\n40",
-        "starter_code": "// Write your code below\n",
-        "explanation": "Use arithmetic operators like * for multiplication and console.log for output.",
-        "test_cases": [{"input": "", "check_type": "output", "expected": "40"}],
-    },
-    {
-        "id": "ex03",
-        "topic": "strings",
-        "language": "python",
-        "title": "String Operations",
-        "description": "Store 'hello world', print uppercase and length.",
-        "example": "Output:\nHELLO WORLD\n11",
-        "starter_code": "# Write your code below\n",
-        "explanation": "Use .upper() and len() for basic string transformations.",
-        "test_cases": [
-            {"input": "", "check_type": "output_contains", "expected": "HELLO WORLD"},
-            {"input": "", "check_type": "output_contains", "expected": "11"},
-        ],
-    },
-    {
-        "id": "ex04",
-        "topic": "conditions",
-        "language": "javascript",
-        "title": "If / Else Conditions",
-        "description": "Set score=72 and print Pass if >= 50 else Fail.",
-        "example": "Output:\nPass",
-        "starter_code": "// Write your code below\n",
-        "explanation": "Use if/else with comparison operators to branch logic.",
-        "test_cases": [{"input": "", "check_type": "output", "expected": "Pass"}],
-    },
-    {
-        "id": "ex05",
-        "topic": "loops",
-        "language": "python",
-        "title": "While Loop",
-        "description": "Print numbers 1 to 5 using a while loop.",
-        "example": "Output:\n1\n2\n3\n4\n5",
-        "starter_code": "# Write your code below\n",
-        "explanation": "Update loop counters to avoid infinite loops.",
-        "test_cases": [{"input": "", "check_type": "output", "expected": "1\n2\n3\n4\n5"}],
-    },
-    {
-        "id": "ex06",
-        "topic": "loops",
-        "language": "javascript",
-        "title": "For Loop & Lists",
-        "description": "Print each fruit from an array using for...of.",
-        "example": "Output:\napple\nbanana\ncherry",
-        "starter_code": "// Write your code below\n",
-        "explanation": "Use for...of to iterate array values.",
-        "test_cases": [{"input": "", "check_type": "output", "expected": "apple\nbanana\ncherry"}],
-    },
-    {
-        "id": "ex07",
-        "topic": "functions",
-        "language": "python",
-        "title": "Functions (Capstone)",
-        "description": "Define celsius_to_fahrenheit(c), call with 100, print result.",
-        "example": "Output:\n212.0",
-        "starter_code": "# Write your code below\n",
-        "explanation": "Functions encapsulate reusable logic and return computed values.",
-        "test_cases": [{"input": "", "check_type": "output", "expected": "212.0"}],
-    },
-]
-
-EXERCISE_MAP = {ex["id"]: ex for ex in EXERCISES}
-TOPIC_EXERCISES = {}
-for ex in EXERCISES:
-    TOPIC_EXERCISES.setdefault(ex["topic"], []).append(ex)
+from app.data import (
+    EXERCISES,
+    EXERCISE_MAP,
+    LANGUAGE_LABELS,
+    get_quiz_questions,
+    get_topic_content,
+    get_track_exercises,
+    get_track_topics,
+    normalize_language,
+)
+from app.services.execution_engine import ExecutionEngine
+from app.services.export_service import ExportService
+from app.services.learning_engine import LearningEngine
+from app.utils.decorators import requires_admin_login
 
 
 def _attempts_col():
@@ -248,206 +39,256 @@ def _recommend_col():
     return mongo.db.recommendations_log if mongo.db is not None else None
 
 
-def _init_participant_session(mode: str):
-    if "session_id" not in session or session.get("group_type") != mode:
-        session["session_id"] = str(uuid.uuid4())
-        session["group_type"] = mode
-        session["experiment_group"] = random.choice(EXPERIMENT_GROUPS)
-    if "experiment_group" not in session:
-        session["experiment_group"] = random.choice(EXPERIMENT_GROUPS)
+def _language_label(exercise: dict) -> str:
+    language = str(exercise.get("language") or "python")
+    return LANGUAGE_LABELS.get(language, language)
 
 
-def _get_session_progress(session_id: str):
-    col = _attempts_col()
-    if not session_id or col is None:
-        return {"attempted": 0, "passed": 0, "total_attempts": 0}
-    rows = list(col.find({"session_id": session_id}, {"exercise_id": 1, "result": 1, "_id": 0}))
-    attempted = len({r.get("exercise_id") for r in rows})
-    passed = len({r.get("exercise_id") for r in rows if r.get("result") == "pass"})
-    return {"attempted": attempted, "passed": passed, "total_attempts": len(rows)}
+def _selected_language() -> str:
+    """Resolve selected language from query or session with python fallback."""
+    requested = request.args.get("lang")
+    if requested:
+        lang = normalize_language(requested)
+        session["selected_language"] = lang
+        return lang
+    return normalize_language(session.get("selected_language"))
 
 
-def _next_attempt_number(session_id: str, exercise_id: str):
-    col = _attempts_col()
-    if col is None:
-        return 1
-    return col.count_documents({"session_id": session_id, "exercise_id": exercise_id}) + 1
+def _csv_download(rows: list[dict], filename: str):
+    bio = io.BytesIO(ExportService.to_csv_bytes(rows))
+    return send_file(bio, mimetype="text/csv", as_attachment=True, download_name=filename)
 
 
-def _build_recommendations(exercise: dict, attempt_number: int, eval_result: dict):
-    recs = []
-    topic = exercise["topic"]
-    if eval_result["result"] == "fail" and attempt_number >= 3:
-        recs.append({
-            "type": "tutorial",
-            "title": f"Review tutorial: {TOPICS.get(topic, {}).get('title', topic)}",
-            "reason": "Three or more failed attempts on the same exercise.",
-            "resource_url": url_for("topic_page", topic_id=topic),
-        })
-    if eval_result.get("error_type") == "syntax":
-        recs.append({
-            "type": "syntax_guide",
-            "title": "Syntax support recommended",
-            "reason": "Syntax issues detected.",
-            "resource_url": url_for("topic_page", topic_id=topic),
-        })
-    if eval_result.get("error_type") == "logic":
-        recs.append({
-            "type": "extra_practice",
-            "title": "Try targeted practice",
-            "reason": "Logic mismatch against expected output.",
-            "resource_url": url_for("topic_quiz", topic_id=topic),
-        })
-    return recs[:3]
+def _render_exercise_page(
+    mode: str,
+    exercise_index: int,
+    selected_language: str,
+    feedback=None,
+    submitted_code: str | None = None,
+):
+    track_exercises = get_track_exercises(selected_language)
+    if not track_exercises:
+        track_exercises = EXERCISES
 
-
-def _log_recommendations(session_id: str, group_type: str, experiment_group: str, exercise_id: str, topic: str, recommendations: list):
-    col = _recommend_col()
-    if col is None or not recommendations:
-        return
-    now = datetime.now(timezone.utc)
-    docs = []
-    for rec in recommendations:
-        docs.append({
-            "session_id": session_id,
-            "group_type": group_type,
-            "experiment_group": experiment_group,
-            "exercise_id": exercise_id,
-            "topic": topic,
-            "recommendation_type": rec.get("type"),
-            "title": rec.get("title"),
-            "reason": rec.get("reason"),
-            "resource_url": rec.get("resource_url"),
-            "timestamp": now,
-        })
-    col.insert_many(docs)
-
-
-def _log_attempt(session_id: str, group_type: str, exercise: dict, attempt_number: int, eval_result: dict, execution_time_ms: float, experiment_group: str, recommendations: list):
-    col = _attempts_col()
-    if col is None:
-        return
-    col.insert_one({
-        "session_id": session_id,
-        "group_type": group_type,
-        "experiment_group": experiment_group,
-        "exercise_id": exercise["id"],
-        "programming_language": exercise["language"],
-        "topic": exercise["topic"],
-        "attempt_number": attempt_number,
-        "result": eval_result["result"],
-        "error_type": eval_result["error_type"],
-        "recommendations_triggered": [r.get("type") for r in recommendations],
-        "recommendation_count": len(recommendations),
-        "recommendation_shown": bool(recommendations),
-        "topic_quiz_score": None,
-        "timestamp": datetime.now(timezone.utc),
-        "execution_time_ms": execution_time_ms,
-        "platform_version": "1.2",
-    })
+    exercise_index = max(0, min(exercise_index, len(track_exercises) - 1))
+    exercise = track_exercises[exercise_index]
+    session_id = session.get("session_id")
+    is_interactive = mode == "interactive"
+    mode_endpoint = "interactive_mode" if is_interactive else "static_mode"
+    active_recommendations = []
+    if is_interactive:
+        active_recommendations = session.get("active_recommendations") or []
+    return render_template(
+        "exercise.html",
+        mode=mode,
+        is_interactive=is_interactive,
+        mode_endpoint=mode_endpoint,
+        exercise=exercise,
+        exercises=track_exercises,
+        exercise_index=exercise_index,
+        total=len(track_exercises),
+        feedback=feedback,
+        submitted_code=submitted_code,
+        selected_language=selected_language,
+        progress=LearningEngine.get_session_progress_for_language(_attempts_col(), session_id, selected_language),
+        experiment_group=session.get("experiment_group"),
+        language_label=_language_label(exercise),
+        active_recommendations=active_recommendations,
+    )
 
 
 def index():
-    return render_template("index.html", topics=TOPICS)
+    selected_language = _selected_language()
+    return render_template(
+        "index.html",
+        topics=get_track_topics(selected_language),
+        selected_language=selected_language,
+    )
 
 
 def static_mode():
-    _init_participant_session("static")
+    selected_language = _selected_language()
+    session["selected_language"] = selected_language
+    LearningEngine.init_participant_session(
+        session_store=session,
+        mode="static",
+        random_uuid=str(uuid.uuid4()),
+        rand_choice=random.choice,
+    )
     exercise_index = int(request.args.get("ex", 0))
-    exercise_index = max(0, min(exercise_index, len(EXERCISES) - 1))
-    exercise = EXERCISES[exercise_index]
-    progress = _get_session_progress(session.get("session_id"))
-    return render_template(
-        "static_mode.html",
-        exercise=exercise,
-        exercises=EXERCISES,
+    return _render_exercise_page(
+        mode="static",
         exercise_index=exercise_index,
-        total=len(EXERCISES),
-        feedback=None,
-        progress=progress,
-        experiment_group=session.get("experiment_group"),
-        language_label=LANGUAGE_LABELS.get(exercise.get("language"), exercise.get("language", "Python")),
+        selected_language=selected_language,
     )
 
 
 def interactive_mode():
-    _init_participant_session("interactive")
-    exercise_index = int(request.args.get("ex", 0))
-    exercise_index = max(0, min(exercise_index, len(EXERCISES) - 1))
-    exercise = EXERCISES[exercise_index]
-    progress = _get_session_progress(session.get("session_id"))
-    return render_template(
-        "interactive_mode.html",
-        exercise=exercise,
-        exercises=EXERCISES,
-        exercise_index=exercise_index,
-        total=len(EXERCISES),
-        feedback=None,
-        progress=progress,
-        experiment_group=session.get("experiment_group"),
-        language_label=LANGUAGE_LABELS.get(exercise.get("language"), exercise.get("language", "Python")),
+    selected_language = _selected_language()
+    session["selected_language"] = selected_language
+    LearningEngine.init_participant_session(
+        session_store=session,
+        mode="interactive",
+        random_uuid=str(uuid.uuid4()),
+        rand_choice=random.choice,
     )
+    exercise_index = int(request.args.get("ex", 0))
+    return _render_exercise_page(
+        mode="interactive",
+        exercise_index=exercise_index,
+        selected_language=selected_language,
+    )
+
+
+def start_session():
+    """Start participant flow only after explicit onboarding confirmation."""
+    mode = LearningEngine._normalize_mode(request.form.get("mode") or request.args.get("mode"))
+    language = normalize_language(request.form.get("language") or request.args.get("language"))
+    session["selected_language"] = language
+    session["session_completed"] = False
+    if not session.get("participant_ref"):
+        session["participant_ref"] = str(uuid.uuid4())
+    session.pop("active_recommendations", None)
+
+    if mode == "interactive":
+        return redirect(url_for("interactive_mode", lang=language))
+    return redirect(url_for("static_mode", lang=language))
 
 
 def submit():
     code = request.form.get("code", "")
-    exercise_id = request.form.get("exercise_id")
+    exercise_id = request.form.get("exercise_id") or ""
     exercise_index = int(request.form.get("exercise_index", 0))
-    group_type = session.get("group_type", "static")
-    experiment_group = session.get("experiment_group", "A_control")
+    mode = session.get("mode") or session.get("group_type", "static")
+    experiment_arm = session.get("experiment_arm") or session.get("experiment_group", "control")
+    selected_language = normalize_language(session.get("selected_language"))
     session_id = session.get("session_id", str(uuid.uuid4()))
     session["session_id"] = session_id
+    participant_ref = str(session.get("participant_ref") or session_id)
+    session["participant_ref"] = participant_ref
+    journey = LearningEngine(session_id)
 
     exercise = EXERCISE_MAP.get(exercise_id)
     if not exercise:
         return "Invalid exercise", 400
 
-    attempt_number = _next_attempt_number(session_id, exercise_id)
-    exec_result = ExerciseService.run_code(code, language=exercise.get("language", "python"))
-    eval_result = ExerciseService.evaluate_test_cases(exercise, exec_result)
+    # Enforce language-track consistency.
+    if exercise.get("language") != selected_language:
+        return "Exercise does not belong to selected language track", 400
+
+    attempt_number = LearningEngine.next_attempt_number(_attempts_col(), session_id, exercise_id)
+    exec_result = ExecutionEngine.run_code(code, language=exercise.get("language", "python"))
+    eval_result = ExecutionEngine.evaluate_test_cases(exercise, exec_result)
     exec_time_ms = exec_result.get("execution_time_ms", 0)
 
+    language_track = get_track_exercises(selected_language)
+    user_state = {
+        "topic": exercise.get("topic"),
+        "attempts": attempt_number,
+        "success": eval_result.get("result") == "pass",
+        "error_type": eval_result.get("error_type"),
+        "time_taken": float(exec_time_ms or 0) / 1000,
+        "exercise_index": exercise_index,
+        "total_exercises": len(language_track),
+        "language": selected_language,
+    }
+    user_profile = LearningEngine.build_user_profile(_attempts_col(), session_id, selected_language)
+
     recommendations = []
-    if experiment_group == "B_adaptive":
-        recommendations = _build_recommendations(exercise, attempt_number, eval_result)
-        _log_recommendations(
+    next_step = {
+        "action": "static_progression",
+        "next_exercise_index": min(exercise_index + 1, max(0, len(language_track) - 1)) if eval_result.get("result") == "pass" else exercise_index,
+        "support_action": "exercise",
+        "profile_based": False,
+    }
+    # Scope-aligned behavior: adaptive support is shown in interactive mode only.
+    if mode == "interactive":
+        next_step = LearningEngine.get_next_step(user_state, user_profile)
+        recommendations = LearningEngine.generate_recommendation(
+            user_state,
+            topic_page_url=url_for(
+                "topic_page",
+                topic_id=exercise.get("topic", ""),
+                lang=selected_language,
+                return_mode="interactive_mode",
+                ex=exercise_index,
+            ),
+            topic_quiz_url=url_for(
+                "topic_quiz",
+                topic_id=exercise.get("topic", ""),
+                lang=selected_language,
+                return_mode="interactive_mode",
+                ex=exercise_index,
+            ),
+            easier_exercise_url=url_for(
+                "interactive_mode",
+                lang=selected_language,
+                ex=max(0, exercise_index - 1),
+            ),
+            user_profile=user_profile,
+        )
+        if eval_result.get("result") == "pass":
+            session.pop("active_recommendations", None)
+        elif recommendations:
+            session["active_recommendations"] = recommendations
+        LearningEngine.log_recommendations(
+            recommend_col=_recommend_col(),
             session_id=session_id,
-            group_type=group_type,
-            experiment_group=experiment_group,
+            user_id=participant_ref,
+            mode=mode,
+            experiment_arm=experiment_arm,
             exercise_id=exercise_id,
             topic=exercise.get("topic", ""),
             recommendations=recommendations,
         )
+    else:
+        session.pop("active_recommendations", None)
 
-    _log_attempt(
+    LearningEngine.log_attempt(
+        attempts_col=_attempts_col(),
         session_id=session_id,
-        group_type=group_type,
+        user_id=participant_ref,
+        mode=mode,
         exercise=exercise,
         attempt_number=attempt_number,
         eval_result=eval_result,
         execution_time_ms=exec_time_ms,
-        experiment_group=experiment_group,
+        experiment_arm=experiment_arm,
         recommendations=recommendations,
+        next_step=next_step,
     )
 
-    if group_type == "static":
+    journey.log_event(
+        {
+            "event_type": "attempt_evaluated",
+            "session_id": session_id,
+            "exercise_id": exercise_id,
+            "language": selected_language,
+            "mode": mode,
+            "experiment_arm": experiment_arm,
+            "next_step_action": next_step.get("action"),
+        }
+    )
+
+    if mode == "static":
+        failed_tests = []
+        for row in eval_result.get("details") or []:
+            if not row.get("passed"):
+                failed_tests.append(str(row.get("test") or "Failed test"))
         feedback = {
             "mode": "static",
             "passed": eval_result["passed"],
             "message": "Correct!" if eval_result["passed"] else "Incorrect.",
-            "recommendations": recommendations,
+            "failed_tests": failed_tests,
+            "recommendations": [],
+            "next_step": next_step,
         }
-        return render_template(
-            "static_mode.html",
-            exercise=exercise,
-            exercises=EXERCISES,
+        return _render_exercise_page(
+            mode="static",
             exercise_index=exercise_index,
-            total=len(EXERCISES),
+            selected_language=selected_language,
             feedback=feedback,
             submitted_code=code,
-            progress=_get_session_progress(session_id),
-            experiment_group=experiment_group,
-            language_label=LANGUAGE_LABELS.get(exercise.get("language"), exercise.get("language", "Python")),
         )
 
     feedback = {
@@ -457,18 +298,14 @@ def submit():
         "details": eval_result["details"],
         "error_type": eval_result["error_type"],
         "recommendations": recommendations,
+        "next_step": next_step,
     }
-    return render_template(
-        "interactive_mode.html",
-        exercise=exercise,
-        exercises=EXERCISES,
+    return _render_exercise_page(
+        mode="interactive",
         exercise_index=exercise_index,
-        total=len(EXERCISES),
+        selected_language=selected_language,
         feedback=feedback,
         submitted_code=code,
-        progress=_get_session_progress(session_id),
-        experiment_group=experiment_group,
-        language_label=LANGUAGE_LABELS.get(exercise.get("language"), exercise.get("language", "Python")),
     )
 
 
@@ -484,7 +321,11 @@ def admin_login():
     if request.method == "POST":
         user = request.form.get("username", "").strip()
         pwd = request.form.get("password", "").strip()
-        if user == os.getenv("ADMIN_USERNAME", "admin") and pwd == os.getenv("ADMIN_PASSWORD", "research2026"):
+        admin_user = str(current_app.config.get("ADMIN_USERNAME") or "")
+        admin_password = str(current_app.config.get("ADMIN_PASSWORD") or "")
+        credentials_configured = bool(admin_user and admin_password)
+
+        if credentials_configured and compare_digest(user, admin_user) and compare_digest(pwd, admin_password):
             session["admin_logged_in"] = True
             return redirect(url_for("admin_dashboard"))
         error = "Invalid username or password."
@@ -496,132 +337,231 @@ def admin_logout():
     return redirect(url_for("admin_login"))
 
 
+@requires_admin_login
 def admin_dashboard():
-    if not session.get("admin_logged_in"):
-        return redirect(url_for("admin_login"))
     return render_template("admin_dashboard.html")
 
 
 def session_complete():
     sid = session.get("session_id")
-    group_type = session.get("group_type", "unknown")
-    experiment_group = session.get("experiment_group", "A_control")
-    total_ex = len(EXERCISES)
+    mode = session.get("mode") or session.get("group_type", "unknown")
+    experiment_arm = session.get("experiment_arm") or session.get("experiment_group", "control")
+    selected_language = normalize_language(session.get("selected_language"))
+    total_ex = len(get_track_exercises(selected_language) or EXERCISES)
+    session["session_completed"] = True
 
-    col = _attempts_col()
-    qcol = _quiz_col()
-    if not sid or col is None:
-        stats = {
-            "exercises_attempted": 0,
-            "exercises_passed": 0,
-            "total_attempts": 0,
-            "duration_min": 0,
-            "completion_rate": 0,
-            "group_type": group_type,
-            "experiment_group": experiment_group,
-            "recommendation_count": 0,
-            "avg_quiz_score": None,
-        }
-    else:
-        rows = list(col.find({"session_id": sid}))
-        attempted = {r.get("exercise_id") for r in rows}
-        passed = {r.get("exercise_id") for r in rows if r.get("result") == "pass"}
-        timestamps = [r.get("timestamp") for r in rows if r.get("timestamp")]
-        duration_min = 0
-        if len(timestamps) > 1:
-            duration_min = round((max(timestamps) - min(timestamps)).total_seconds() / 60, 1)
-        avg_quiz = None
-        if qcol is not None:
-            qrows = list(qcol.find({"session_id": sid}, {"score_pct": 1, "_id": 0}))
-            if qrows:
-                avg_quiz = round(sum(row.get("score_pct", 0) for row in qrows) / len(qrows), 1)
+    stats = LearningEngine.build_completion_stats(
+        attempts_col=_attempts_col(),
+        quiz_col=_quiz_col(),
+        session_id=sid,
+        mode=mode,
+        experiment_arm=experiment_arm,
+        total_exercises=total_ex,
+    )
 
-        stats = {
-            "exercises_attempted": len(attempted),
-            "exercises_passed": len(passed),
-            "total_attempts": len(rows),
-            "duration_min": duration_min,
-            "completion_rate": round(len(passed) / total_ex * 100) if total_ex else 0,
-            "group_type": group_type,
-            "experiment_group": experiment_group,
-            "recommendation_count": sum(int(r.get("recommendation_count", 0)) for r in rows),
-            "avg_quiz_score": avg_quiz,
-        }
+    return render_template(
+        "completion.html",
+        stats=stats,
+        selected_language=selected_language,
+    )
 
-    return render_template("completion.html", stats=stats)
+
+def study_information():
+    """Consolidated study information page (formerly 3 separate pages)."""
+    return render_template("study_information.html")
 
 
 def research_info():
-    return render_template("research_info.html")
+    """Redirect to consolidated study information page (backward compatibility)."""
+    return redirect(url_for('study_information'))
 
 
 def methodology_page():
-    return render_template("methodology.html")
+    """Redirect to consolidated study information page (backward compatibility)."""
+    return redirect(url_for('study_information'))
+
+
+def study_design_page():
+    """Redirect to consolidated study information page (backward compatibility)."""
+    return redirect(url_for('study_information'))
+
+
+def my_progress_page():
+    return render_template("my_progress.html", progress_unlocked=bool(session.get("session_completed")))
 
 
 def topic_page(topic_id):
-    topic = TOPICS.get(topic_id)
+    selected_language = _selected_language()
+    return_mode = request.args.get("return_mode") or "interactive_mode"
+    if return_mode not in ("interactive_mode", "static_mode"):
+        return_mode = "interactive_mode"
+    return_ex = request.args.get("ex", "0")
+    topic = get_topic_content(selected_language, topic_id)
     if not topic:
         return "Topic not found", 404
-    exercises = TOPIC_EXERCISES.get(topic_id, [])
+    exercises = [
+        ex for ex in get_track_exercises(selected_language)
+        if ex.get("topic") == topic_id
+    ]
     return render_template(
         "topic.html",
         topic_id=topic_id,
         topic=topic,
         exercises=exercises,
+        selected_language=selected_language,
         language_labels=LANGUAGE_LABELS,
+        return_mode=return_mode,
+        return_ex=return_ex,
     )
 
 
 def topic_quiz(topic_id):
-    topic = TOPICS.get(topic_id)
-    questions = QUIZ_BANK.get(topic_id, [])
+    selected_language = _selected_language()
+    return_mode = request.args.get("return_mode") or "interactive_mode"
+    if return_mode not in ("interactive_mode", "static_mode"):
+        return_mode = "interactive_mode"
+    return_ex = request.args.get("ex", "0")
+    try:
+        return_ex_int = int(return_ex)
+    except (TypeError, ValueError):
+        return_ex_int = 0
+    topic = get_topic_content(selected_language, topic_id)
+    questions = get_quiz_questions(selected_language, topic_id)
     if not topic or not questions:
         return "Quiz not available for this topic", 404
 
     if "session_id" not in session:
-        _init_participant_session("interactive")
+        LearningEngine.init_participant_session(
+            session_store=session,
+            mode="interactive",
+            random_uuid=str(uuid.uuid4()),
+            rand_choice=random.choice,
+        )
+
+    unlock = LearningEngine.topic_quiz_unlock_status(
+        attempts_col=_attempts_col(),
+        session_id=session.get("session_id"),
+        topic_id=topic_id,
+        selected_language=selected_language,
+        experiment_arm=session.get("experiment_arm") or session.get("experiment_group", "control"),
+    )
+
+    if not unlock["unlocked"]:
+        return render_template(
+            "quiz.html",
+            topic_id=topic_id,
+            topic=topic,
+            questions=questions,
+            selected_language=selected_language,
+            submitted=False,
+            locked=True,
+            lock_reason=unlock["reason"],
+            return_mode=return_mode,
+            return_ex=return_ex,
+        )
 
     if request.method == "POST":
-        score = 0
-        answers = []
-        for q in questions:
-            raw = request.form.get(q["id"], "")
-            selected = int(raw) if raw.isdigit() else -1
-            correct = selected == q["answer"]
-            if correct:
-                score += 1
-            answers.append({
-                "question_id": q["id"],
-                "selected": selected,
-                "correct_option": q["answer"],
-                "is_correct": correct,
-            })
+        quiz_result = LearningEngine.evaluate_quiz_submission(questions, request.form)
+        mode = session.get("mode") or session.get("group_type", "interactive")
+        participant_ref = str(session.get("participant_ref") or session.get("session_id") or "")
+        LearningEngine.log_quiz_attempt(
+            quiz_col=_quiz_col(),
+            session_id=session.get("session_id"),
+            user_id=participant_ref,
+            mode=mode,
+            experiment_arm=session.get("experiment_arm") or session.get("experiment_group", "control"),
+            topic_id=topic_id,
+            quiz_result=quiz_result,
+        )
 
-        score_pct = round((score / len(questions)) * 100, 1)
-        col = _quiz_col()
-        if col is not None:
-            col.insert_one({
-                "session_id": session.get("session_id"),
-                "group_type": session.get("group_type", "interactive"),
-                "experiment_group": session.get("experiment_group", "A_control"),
-                "topic": topic_id,
-                "score": score,
-                "total_questions": len(questions),
-                "score_pct": score_pct,
-                "answers": answers,
-                "timestamp": datetime.now(timezone.utc),
-            })
+        raw_score_pct = quiz_result.get("score_pct", 0)
+        score_pct = float(raw_score_pct if isinstance(raw_score_pct, (int, float)) else 0)
+        next_guidance = {
+            "label": "Continue practice",
+            "message": "Return to your exercise and apply what you just reviewed.",
+            "primary_url": url_for(return_mode, lang=selected_language, ex=return_ex_int),
+            "primary_text": "Back to Exercise",
+            "secondary_url": url_for("topic_page", topic_id=topic_id, lang=selected_language, return_mode=return_mode, ex=return_ex),
+            "secondary_text": "View Lesson",
+        }
+
+        if mode == "interactive":
+            lesson_url = url_for(
+                "topic_page",
+                topic_id=topic_id,
+                lang=selected_language,
+                return_mode=return_mode,
+                ex=return_ex,
+            )
+            exercise_url = url_for(return_mode, lang=selected_language, ex=return_ex_int)
+            if score_pct < 40:
+                session["active_recommendations"] = [
+                    {
+                        "type": "lesson",
+                        "title": "Recommended now: Watch the lesson",
+                        "reason": "Low quiz score suggests concept gaps; review before retrying code.",
+                        "resource_url": lesson_url,
+                        "intensity": "high",
+                    },
+                    {
+                        "type": "exercise",
+                        "title": "Then retry this exercise",
+                        "reason": "Apply the corrected concept immediately after the lesson.",
+                        "resource_url": exercise_url,
+                        "intensity": "medium",
+                    },
+                ]
+                next_guidance = {
+                    "label": "Review then retry",
+                    "message": "Your quiz result suggests a concept gap. Watch the lesson first, then retry the exercise.",
+                    "primary_url": lesson_url,
+                    "primary_text": "Watch Lesson First",
+                    "secondary_url": exercise_url,
+                    "secondary_text": "Retry Exercise",
+                }
+            elif score_pct < 70:
+                session["active_recommendations"] = [
+                    {
+                        "type": "exercise",
+                        "title": "Practice now: Retry this exercise",
+                        "reason": "You are close; one focused retry should help you pass.",
+                        "resource_url": exercise_url,
+                        "intensity": "medium",
+                    }
+                ]
+                next_guidance = {
+                    "label": "Retry now",
+                    "message": "You are making progress. Retry the exercise now while this concept is fresh.",
+                    "primary_url": exercise_url,
+                    "primary_text": "Retry Exercise",
+                    "secondary_url": lesson_url,
+                    "secondary_text": "Review Lesson",
+                }
+            else:
+                session.pop("active_recommendations", None)
+                next_guidance = {
+                    "label": "Advance",
+                    "message": "Great quiz performance. Move on to the next coding step confidently.",
+                    "primary_url": exercise_url,
+                    "primary_text": "Continue Exercise",
+                    "secondary_url": lesson_url,
+                    "secondary_text": "Optional Lesson Review",
+                }
 
         return render_template(
             "quiz.html",
             topic_id=topic_id,
             topic=topic,
             questions=questions,
+            selected_language=selected_language,
             submitted=True,
-            score=score,
-            total=len(questions),
-            score_pct=score_pct,
+            locked=False,
+            score=quiz_result["score"],
+            total=quiz_result["total_questions"],
+            score_pct=quiz_result["score_pct"],
+            next_guidance=next_guidance,
+            return_mode=return_mode,
+            return_ex=return_ex,
         )
 
     return render_template(
@@ -629,63 +569,82 @@ def topic_quiz(topic_id):
         topic_id=topic_id,
         topic=topic,
         questions=questions,
+        selected_language=selected_language,
         submitted=False,
+        locked=False,
+        return_mode=return_mode,
+        return_ex=return_ex,
     )
 
 
+@requires_admin_login
 def export_research_dataset():
-    if not session.get("admin_logged_in"):
-        return redirect(url_for("admin_login"))
-
     col = _attempts_col()
     rows = list(col.find()) if col is not None else []
     if not rows:
         return "No data available", 404
 
-    for row in rows:
-        row.pop("_id", None)
-
-    output = io.StringIO()
-    writer = csv.DictWriter(output, fieldnames=list(rows[0].keys()))
-    writer.writeheader()
-    writer.writerows(rows)
-
-    bio = io.BytesIO(output.getvalue().encode("utf-8"))
-    return send_file(bio, mimetype="text/csv", as_attachment=True, download_name="com748_research_dataset.csv")
+    export_rows = ExportService.build_research_dataset_rows(rows)
+    return _csv_download(export_rows, "com748_research_dataset.csv")
 
 
+@requires_admin_login
 def export_session_summary():
-    if not session.get("admin_logged_in"):
-        return redirect(url_for("admin_login"))
-
     col = _attempts_col()
     if col is None:
         return "No data available", 404
 
     rows = list(col.find())
-    per_session = {}
-    for row in rows:
-        sid = row.get("session_id")
-        if sid not in per_session:
-            per_session[sid] = {
-                "session_id": sid,
-                "group_type": row.get("group_type"),
-                "experiment_group": row.get("experiment_group"),
-                "attempts": 0,
-                "passes": 0,
-            }
-        per_session[sid]["attempts"] += 1
-        if row.get("result") == "pass":
-            per_session[sid]["passes"] += 1
-
-    export_rows = list(per_session.values())
+    export_rows = ExportService.build_session_summary_rows(rows)
     if not export_rows:
         return "No session summaries available", 404
 
-    output = io.StringIO()
-    writer = csv.DictWriter(output, fieldnames=list(export_rows[0].keys()))
-    writer.writeheader()
-    writer.writerows(export_rows)
+    return _csv_download(export_rows, "com748_session_summary.csv")
 
-    bio = io.BytesIO(output.getvalue().encode("utf-8"))
-    return send_file(bio, mimetype="text/csv", as_attachment=True, download_name="com748_session_summary.csv")
+
+@requires_admin_login
+def export_quiz_data():
+    col = _quiz_col()
+    rows = list(col.find()) if col is not None else []
+    if not rows:
+        return "No quiz data available", 404
+
+    export_rows = ExportService.build_quiz_rows(rows)
+    return _csv_download(export_rows, "com748_quiz_data.csv")
+
+
+@requires_admin_login
+def export_recommendations():
+    col = _recommend_col()
+    rows = list(col.find()) if col is not None else []
+    if not rows:
+        return "No recommendation data available", 404
+
+    export_rows = ExportService.build_recommendation_rows(rows)
+    return _csv_download(export_rows, "com748_recommendation_log.csv")
+
+
+def register_web_page_routes(app):
+    """Register legacy-compatible web page endpoints on the Flask app."""
+    app.add_url_rule('/', endpoint='index', view_func=index)
+    app.add_url_rule('/static-mode', endpoint='static_mode', view_func=static_mode)
+    app.add_url_rule('/interactive-mode', endpoint='interactive_mode', view_func=interactive_mode)
+    app.add_url_rule('/start-session', endpoint='start_session', view_func=start_session, methods=['POST'])
+    app.add_url_rule('/submit', endpoint='submit', view_func=submit, methods=['POST'])
+    app.add_url_rule('/db-status', endpoint='db_status', view_func=db_status)
+    app.add_url_rule('/admin-login', endpoint='admin_login', view_func=admin_login, methods=['GET', 'POST'])
+    app.add_url_rule('/admin-logout', endpoint='admin_logout', view_func=admin_logout)
+    app.add_url_rule('/admin-dashboard', endpoint='admin_dashboard', view_func=admin_dashboard)
+    app.add_url_rule('/complete', endpoint='session_complete', view_func=session_complete)
+    app.add_url_rule('/study-information', endpoint='study_information', view_func=study_information)
+    app.add_url_rule('/research-info', endpoint='research_info', view_func=research_info)  # redirects to study_information
+    app.add_url_rule('/methodology', endpoint='methodology_page', view_func=methodology_page)  # redirects to study_information
+    app.add_url_rule('/study-design', endpoint='study_design_page', view_func=study_design_page)  # redirects to study_information
+    app.add_url_rule('/my-progress', endpoint='my_progress_page', view_func=my_progress_page)
+    app.add_url_rule('/learn/<topic_id>', endpoint='topic_page', view_func=topic_page)
+    app.add_url_rule('/quiz/<topic_id>', endpoint='topic_quiz', view_func=topic_quiz, methods=['GET', 'POST'])
+    app.add_url_rule('/export-data', endpoint='export_data_csv', view_func=export_research_dataset)
+    app.add_url_rule('/export-research-dataset', endpoint='export_research_dataset', view_func=export_research_dataset)
+    app.add_url_rule('/export-session-summary', endpoint='export_session_summary', view_func=export_session_summary)
+    app.add_url_rule('/export-quiz-data', endpoint='export_quiz_data', view_func=export_quiz_data)
+    app.add_url_rule('/export-recommendations', endpoint='export_recommendations', view_func=export_recommendations)

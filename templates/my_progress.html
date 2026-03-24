@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}My Progress - CodeLearn{% endblock %}
+{% block nav_my_progress %}active{% endblock %}
+
+{% block content %}
+<section class="dash-page">
+  <div class="container">
+    {% if not progress_unlocked %}
+    <header class="dash-header">
+      <h1>Progress Available After Completion</h1>
+      <p>To keep the experiment fair, in-session analytics are hidden. Finish your current path first.</p>
+    </header>
+    <section class="chart-card" style="max-width:760px;margin:0 auto;">
+      <div class="chart-card__header">
+        <div class="chart-card__title"><i data-lucide="lock"></i> Metrics Locked During Session</div>
+        <div class="chart-card__subtitle">This prevents dashboard visibility from influencing participant behavior.</div>
+      </div>
+      <div style="padding:0 1rem 1rem;display:flex;gap:.6rem;flex-wrap:wrap;">
+        <a href="{{ url_for('index') }}" class="btn btn--primary">Return to Home</a>
+        <a href="{{ url_for('session_complete') }}" class="btn btn--secondary">View Completion Summary</a>
+      </div>
+    </section>
+    {% else %}
+    <header class="dash-header">
+      <h1>Your Learning Progress</h1>
+      <p>See your coding attempts, quiz trend, and recommendation history across completed paths.</p>
+      <div class="dash-header__meta">
+        <div class="dash-meta-pill"><span class="dot-live"></span> Post-session analytics</div>
+        <div class="dash-meta-pill" id="session-status-pill">Data scope: Combined participant view</div>
+      </div>
+    </header>
+
+    <div id="dashboard-alert" class="db-error-banner"></div>
+    <div id="progress-loading" class="info-box" style="margin-bottom:1rem;">
+      <div class="info-box__label"><i data-lucide="loader-circle"></i> Loading your progress...</div>
+    </div>
+
+    <section class="stats-grid">
+      <article class="stat-card stat-card--primary">
+        <div class="stat-card__icon"><i data-lucide="activity"></i></div>
+        <div class="stat-card__value" id="user-total-attempts">-</div>
+        <p class="stat-card__label">Total Attempts</p>
+      </article>
+      <article class="stat-card stat-card--success">
+        <div class="stat-card__icon success"><i data-lucide="check-circle-2"></i></div>
+        <div class="stat-card__value" id="user-pass-rate">-</div>
+        <p class="stat-card__label">Pass Rate</p>
+      </article>
+      <article class="stat-card stat-card--warning">
+        <div class="stat-card__icon warning"><i data-lucide="target"></i></div>
+        <div class="stat-card__value" id="user-exercises-completed">-</div>
+        <p class="stat-card__label">Exercises Completed</p>
+      </article>
+      <article class="stat-card stat-card--accent">
+        <div class="stat-card__icon accent"><i data-lucide="graduation-cap"></i></div>
+        <div class="stat-card__value" id="user-quiz-average">-</div>
+        <p class="stat-card__label">Average Quiz Score</p>
+      </article>
+    </section>
+
+    <section class="charts-grid">
+      <article class="chart-card">
+        <div class="chart-card__header">
+          <div class="chart-card__title"><i data-lucide="list-checks"></i> Progress by Exercise</div>
+          <div class="chart-card__subtitle">Attempts and pass state for each exercise.</div>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="progress-chart"></canvas>
+        </div>
+      </article>
+
+      <article class="chart-card">
+        <div class="chart-card__header">
+          <div class="chart-card__title"><i data-lucide="book-open-check"></i> Quiz Performance</div>
+          <div class="chart-card__subtitle">Latest score trend across concepts.</div>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="quiz-chart"></canvas>
+        </div>
+      </article>
+
+      <article class="chart-card chart-card--wide">
+        <div class="chart-card__header">
+          <div class="chart-card__title"><i data-lucide="lightbulb"></i> Recommendation Timeline</div>
+          <div class="chart-card__subtitle">Most recent adaptive suggestions and their reasons.</div>
+        </div>
+        <div id="recommendation-history" class="info-grid"></div>
+      </article>
+
+      <article class="chart-card chart-card--wide">
+        <div class="chart-card__header">
+          <div class="chart-card__title"><i data-lucide="target"></i> Insights</div>
+          <div class="chart-card__subtitle">Weak topics and your next suggested revision focus.</div>
+        </div>
+        <div id="insights-panel" class="info-grid"></div>
+      </article>
+    </section>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+{% if progress_unlocked %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='my_progress.js') }}"></script>
+{% endif %}
+{% endblock %}

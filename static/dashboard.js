@@ -1,9 +1,3 @@
-/**
- * COM748 Research Platform v1.3 — dashboard.js
- * Light-theme Chart.js visualizations, 7 charts across 2 tabs, tab switching.
- */
-
-/* ── Chart.js Light Theme Defaults ── */
 Chart.defaults.color = '#4B5563';
 Chart.defaults.borderColor = 'rgba(0,0,0,0.07)';
 Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
@@ -12,387 +6,316 @@ Chart.defaults.font.size = 12;
 const LIGHT_GRID = { color: 'rgba(0,0,0,0.06)' };
 const LIGHT_TICK = { color: '#9CA3AF' };
 
-/* ── Colour Palette (matching CSS tokens) ── */
 const C = {
-    static: '#F59E0B',
-    interactive: '#4F46E5',
-    accent: '#14B8A6',
-    success: '#22C55E',
-    error: '#EF4444',
-    warning: '#F59E0B',
-    logic: '#A78BFA',
-    runtime: '#F59E0B',
-    timeout: '#06B6D4',
-    syntax: '#EF4444',
-    muted: '#9CA3AF',
+  control: '#F59E0B',
+  adaptive: '#4F46E5',
+  success: '#22C55E',
+  error: '#EF4444',
+  warning: '#F59E0B',
+  accent: '#14B8A6',
+  muted: '#9CA3AF',
 };
-const EX_SHORT = ['EX01', 'EX02', 'EX03', 'EX04', 'EX05', 'EX06', 'EX07'];
-// API returns ids as ex01, ex02 etc (lowercase). Map both ways.
-const EX_TO_LOWER = id => id.toLowerCase();    // 'EX01' → 'ex01'
 
+const chartInstances = {};
 
-let chartInstances = {};
-let insightsLoaded = false;
+function seriesHasData(labels, values, requireNonZero = false) {
+  if (!Array.isArray(labels) || !Array.isArray(values)) return false;
+  if (labels.length === 1 && String(labels[0]).toLowerCase() === 'no data') return false;
+  const numericValues = values
+    .map((v) => Number(v))
+    .filter((v) => Number.isFinite(v));
+  if (!numericValues.length) return false;
+  if (requireNonZero) return numericValues.some((v) => v !== 0);
+  return true;
+}
 
-/* ── Utilities ── */
+function setChartFallback(canvasId, show) {
+  const fb = document.getElementById('fb-' + canvasId);
+  if (fb) fb.style.display = show ? 'block' : 'none';
+}
+
 function alpha(hex, a) {
-    const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
-    return `rgba(${r},${g},${b},${a})`;
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${a})`;
 }
+
 function setStat(id, val) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.classList.remove('skeleton', 'skeleton-text');
-    el.textContent = val;
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = String(val);
 }
+
 function showError(msg) {
-    const el = document.getElementById('db-error-banner');
-    if (el) { el.textContent = '⚠ ' + msg; el.classList.add('visible'); }
+  const el = document.getElementById('db-error-banner');
+  if (!el) return;
+  el.textContent = 'Error: ' + msg;
+  el.classList.add('visible');
 }
-function destroyChart(k) { if (chartInstances[k]) { chartInstances[k].destroy(); chartInstances[k] = null; } }
-function emptyMsg(canvasId, msg) {
-    const c = document.getElementById(canvasId);
-    if (!c) return;
-    c.parentElement.innerHTML = `<p style="text-align:center;color:#9CA3AF;padding:3rem 0;font-size:.83rem;">${msg}</p>`;
+
+function hideError() {
+  const el = document.getElementById('db-error-banner');
+  if (!el) return;
+  el.textContent = '';
+  el.classList.remove('visible');
 }
+
 function setRefreshTime() {
-    const el = document.getElementById('last-refresh');
-    if (el) el.textContent = 'Updated: ' + new Date().toLocaleTimeString();
+  const el = document.getElementById('last-refresh');
+  if (el) el.textContent = 'Updated: ' + new Date().toLocaleTimeString();
 }
 
-/* ═══════════════════════════════════
-   OVERVIEW TAB — 4 charts
-   ═══════════════════════════════════ */
-
-async function loadPassRate() {
-    try {
-        const rows = await fetch('/api/stats/pass-rate').then(r => r.json());
-        if (rows.error) return;
-        const labels = rows.map(r => r.group === 'static' ? 'Static Group' : 'Interactive Group');
-        const data = rows.map(r => r.pass_rate);
-        const colors = rows.map(r => r.group === 'static' ? C.static : C.interactive);
-        destroyChart('passRate');
-        const ctx = document.getElementById('chart-pass-rate').getContext('2d');
-        chartInstances.passRate = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels,
-                datasets: [{
-                    label: 'Pass Rate (%)', data,
-                    backgroundColor: colors.map(c => alpha(c, .75)), borderColor: colors,
-                    borderWidth: 2, borderRadius: 8, borderSkipped: false
-                }]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ` ${c.raw}%` } } },
-                scales: {
-                    y: { beginAtZero: true, max: 100, grid: LIGHT_GRID, ticks: { ...LIGHT_TICK, callback: v => v + '%' } },
-                    x: { grid: { display: false }, ticks: { ...LIGHT_TICK, font: { weight: '600' } } }
-                }
-            }
-        });
-    } catch (e) { console.error('Pass rate:', e); }
+function destroyChart(key) {
+  if (chartInstances[key]) {
+    chartInstances[key].destroy();
+    chartInstances[key] = null;
+  }
 }
 
-async function loadErrors() {
-    try {
-        const rows = await fetch('/api/stats/errors').then(r => r.json());
-        if (!rows.length) { emptyMsg('chart-errors', 'No error data yet.'); return; }
-        const labels = rows.map(r => r.error_type[0].toUpperCase() + r.error_type.slice(1));
-        const counts = rows.map(r => r.count);
-        const colors = rows.map(r => C[r.error_type] || C.muted);
-        destroyChart('errors');
-        const ctx = document.getElementById('chart-errors').getContext('2d');
-        chartInstances.errors = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels,
-                datasets: [{
-                    data: counts, backgroundColor: colors.map(c => alpha(c, .8)),
-                    borderColor: colors, borderWidth: 2, hoverOffset: 8
-                }]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false, cutout: '62%',
-                plugins: {
-                    legend: { position: 'right', labels: { usePointStyle: true, pointStyleWidth: 10, padding: 14 } },
-                    tooltip: { callbacks: { label: c => ` ${c.label}: ${c.raw}` } }
-                }
-            }
-        });
-    } catch (e) { console.error('Errors:', e); }
+function drawBarChart(id, key, labels, values, title, color) {
+  const canvas = document.getElementById(id);
+  if (!canvas) return;
+  if (!seriesHasData(labels, values, false)) {
+    destroyChart(key);
+    setChartFallback(id, true);
+    return;
+  }
+  setChartFallback(id, false);
+  destroyChart(key);
+  const ctx = canvas.getContext('2d');
+  chartInstances[key] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: title,
+        data: values,
+        backgroundColor: labels.map(() => alpha(color, 0.75)),
+        borderColor: labels.map(() => color),
+        borderWidth: 2,
+        borderRadius: 6,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: { beginAtZero: true, grid: LIGHT_GRID, ticks: LIGHT_TICK },
+        x: { grid: { display: false }, ticks: LIGHT_TICK },
+      },
+    },
+  });
 }
 
-async function loadAttempts() {
-    try {
-        const rows = await fetch('/api/stats/attempts').then(r => r.json());
-        if (rows.error) return;
-        const byGroup = { static: {}, interactive: {} };
-        rows.forEach(r => { if (byGroup[r.group_type]) byGroup[r.group_type][r.exercise_id.toLowerCase()] = r.avg_attempts; });
-        destroyChart('attempts');
-        const ctx = document.getElementById('chart-attempts').getContext('2d');
-        chartInstances.attempts = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: EX_SHORT,
-                datasets: [
-                    {
-                        label: 'Static', data: EX_SHORT.map(id => byGroup.static[EX_TO_LOWER(id)] ?? null),
-                        borderColor: C.static, backgroundColor: alpha(C.static, .1),
-                        borderWidth: 2.5, tension: 0.4, fill: true,
-                        pointBackgroundColor: C.static, pointRadius: 5, spanGaps: true
-                    },
-                    {
-                        label: 'Interactive', data: EX_SHORT.map(id => byGroup.interactive[EX_TO_LOWER(id)] ?? null),
-                        borderColor: C.interactive, backgroundColor: alpha(C.interactive, .1),
-                        borderWidth: 2.5, tension: 0.4, fill: true,
-                        pointBackgroundColor: C.interactive, pointRadius: 5, spanGaps: true
-                    }
-                ]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { position: 'top', labels: { usePointStyle: true, pointStyleWidth: 10 } } },
-                scales: {
-                    y: { beginAtZero: true, grid: LIGHT_GRID, ticks: LIGHT_TICK, title: { display: true, text: 'Avg Attempts', color: '#9CA3AF' } },
-                    x: { grid: { display: false }, ticks: LIGHT_TICK }
-                }
-            }
-        });
-    } catch (e) { console.error('Attempts:', e); }
+function drawGroupedBar(id, key, labels, ds1Label, ds1, ds2Label, ds2) {
+  const canvas = document.getElementById(id);
+  if (!canvas) return;
+  if (!seriesHasData(labels, ds1, false) && !seriesHasData(labels, ds2, false)) {
+    destroyChart(key);
+    setChartFallback(id, true);
+    return;
+  }
+  setChartFallback(id, false);
+  destroyChart(key);
+  const ctx = canvas.getContext('2d');
+  chartInstances[key] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: ds1Label,
+          data: ds1,
+          backgroundColor: alpha(C.control, 0.75),
+          borderColor: C.control,
+          borderWidth: 2,
+          borderRadius: 6,
+        },
+        {
+          label: ds2Label,
+          data: ds2,
+          backgroundColor: alpha(C.adaptive, 0.75),
+          borderColor: C.adaptive,
+          borderWidth: 2,
+          borderRadius: 6,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: { beginAtZero: true, grid: LIGHT_GRID, ticks: LIGHT_TICK },
+        x: { grid: { display: false }, ticks: LIGHT_TICK },
+      },
+    },
+  });
 }
 
-async function loadLearningCurve() {
-    try {
-        const rows = await fetch('/api/stats/learning-curve').then(r => r.json());
-        if (!rows.length) { emptyMsg('chart-learning', 'Insufficient pass data yet.'); return; }
-        const byGroup = { static: {}, interactive: {} };
-        rows.forEach(r => { if (byGroup[r.group_type]) byGroup[r.group_type][r.exercise_id.toLowerCase()] = r.avg_first_pass; });
-        destroyChart('learning');
-        const ctx = document.getElementById('chart-learning').getContext('2d');
-        chartInstances.learning = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: EX_SHORT,
-                datasets: [
-                    {
-                        label: 'Static', data: EX_SHORT.map(id => byGroup.static[EX_TO_LOWER(id)] ?? null),
-                        backgroundColor: alpha(C.static, .75), borderColor: C.static, borderWidth: 2, borderRadius: 6, borderSkipped: false
-                    },
-                    {
-                        label: 'Interactive', data: EX_SHORT.map(id => byGroup.interactive[EX_TO_LOWER(id)] ?? null),
-                        backgroundColor: alpha(C.interactive, .75), borderColor: C.interactive, borderWidth: 2, borderRadius: 6, borderSkipped: false
-                    }
-                ]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'top', labels: { usePointStyle: true, pointStyleWidth: 10 } },
-                    tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${c.raw} attempts` } }
-                },
-                scales: {
-                    y: { beginAtZero: true, grid: LIGHT_GRID, ticks: LIGHT_TICK, title: { display: true, text: 'Avg attempts to first pass', color: '#9CA3AF' } },
-                    x: { grid: { display: false }, ticks: LIGHT_TICK }
-                }
-            }
-        });
-    } catch (e) { console.error('Learning curve:', e); }
+function drawPie(id, key, labels, values) {
+  const canvas = document.getElementById(id);
+  if (!canvas) return;
+  if (!seriesHasData(labels, values, true)) {
+    destroyChart(key);
+    setChartFallback(id, true);
+    return;
+  }
+  setChartFallback(id, false);
+  destroyChart(key);
+  const colors = [C.error, C.warning, C.accent, C.adaptive, C.control, C.muted];
+  const ctx = canvas.getContext('2d');
+  chartInstances[key] = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        backgroundColor: labels.map((_, i) => alpha(colors[i % colors.length], 0.8)),
+        borderColor: labels.map((_, i) => colors[i % colors.length]),
+        borderWidth: 2,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'right' } },
+    },
+  });
 }
 
-/* ═══════════════════════════════════
-   RESEARCH INSIGHTS TAB — 3 charts
-   ═══════════════════════════════════ */
-
-async function loadInsights() {
-    if (insightsLoaded) return;
-    insightsLoaded = true;
-    await Promise.allSettled([loadTimeToPass(), loadPersistence(), loadErrorTransitions()]);
+async function fetchJson(url) {
+  const res = await fetch(url);
+  return res.json();
 }
-
-async function loadTimeToPass() {
-    try {
-        const rows = await fetch('/api/stats/time-to-pass').then(r => r.json());
-        if (!rows.length) { emptyMsg('chart-time-to-pass', 'No time-to-pass data yet — requires valid sessions with at least one passed exercise.'); return; }
-        const byGroup = { static: {}, interactive: {} };
-        rows.forEach(r => { if (byGroup[r.group_type]) byGroup[r.group_type][r.exercise_id.toLowerCase()] = r.avg_time_seconds; });
-        destroyChart('timeToPPass');
-        const ctx = document.getElementById('chart-time-to-pass').getContext('2d');
-        chartInstances.timeToPPass = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: EX_SHORT,
-                datasets: [
-                    {
-                        label: 'Static (s)', data: EX_SHORT.map(id => byGroup.static[EX_TO_LOWER(id)] ?? null),
-                        backgroundColor: alpha(C.warning, .75), borderColor: C.warning, borderWidth: 2, borderRadius: 6, borderSkipped: false, spanGaps: true
-                    },
-                    {
-                        label: 'Interactive (s)', data: EX_SHORT.map(id => byGroup.interactive[EX_TO_LOWER(id)] ?? null),
-                        backgroundColor: alpha(C.accent, .75), borderColor: C.accent, borderWidth: 2, borderRadius: 6, borderSkipped: false, spanGaps: true
-                    }
-                ]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'top', labels: { usePointStyle: true, pointStyleWidth: 10 } },
-                    tooltip: {
-                        callbacks: {
-                            label: c => {
-                                if (c.raw <= 5.0 && c.raw > 0) return ` ${c.dataset.label}: ~${c.raw}s (passed on 1st attempt)`;
-                                return ` ${c.dataset.label}: ${c.raw}s avg to first pass`;
-                            }
-                        }
-                    }
-
-                },
-                scales: {
-                    y: { beginAtZero: true, grid: LIGHT_GRID, ticks: LIGHT_TICK, title: { display: true, text: 'Seconds to first pass', color: '#9CA3AF' } },
-                    x: { grid: { display: false }, ticks: LIGHT_TICK }
-                }
-            }
-        });
-    } catch (e) { console.error('Time-to-pass:', e); }
-}
-
-async function loadPersistence() {
-    try {
-        const rows = await fetch('/api/stats/persistence').then(r => r.json());
-        if (!rows.length) { emptyMsg('chart-persistence', 'No persistence data yet — requires sessions where exercises were never passed.'); return; }
-        const byGroup = { static: {}, interactive: {} };
-        rows.forEach(r => { if (byGroup[r.group_type]) byGroup[r.group_type][r.exercise_id.toLowerCase()] = r.avg_attempts; });
-        destroyChart('persistence');
-        const ctx = document.getElementById('chart-persistence').getContext('2d');
-        chartInstances.persistence = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: EX_SHORT,
-                datasets: [
-                    {
-                        label: 'Static', data: EX_SHORT.map(id => byGroup.static[EX_TO_LOWER(id)] ?? null),
-                        backgroundColor: alpha(C.error, .7), borderColor: C.error, borderWidth: 2, borderRadius: 6, borderSkipped: false
-                    },
-                    {
-                        label: 'Interactive', data: EX_SHORT.map(id => byGroup.interactive[EX_TO_LOWER(id)] ?? null),
-                        backgroundColor: alpha(C.logic, .7), borderColor: C.logic, borderWidth: 2, borderRadius: 6, borderSkipped: false
-                    }
-                ]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'top', labels: { usePointStyle: true, pointStyleWidth: 10 } },
-                    tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${c.raw} avg attempts (never passed)` } }
-                },
-                scales: {
-                    y: { beginAtZero: true, grid: LIGHT_GRID, ticks: LIGHT_TICK, title: { display: true, text: 'Avg attempts (unsolved)', color: '#9CA3AF' } },
-                    x: { grid: { display: false }, ticks: LIGHT_TICK }
-                }
-            }
-        });
-    } catch (e) { console.error('Persistence:', e); }
-}
-
-async function loadErrorTransitions() {
-    try {
-        const rows = await fetch('/api/stats/error-transitions').then(r => r.json());
-        if (!rows.length) { emptyMsg('chart-transitions', 'No error transition data yet — requires multiple attempts per session.'); return; }
-        const top = rows.slice(0, 12);
-        const labels = top.map(r => `${r.from} → ${r.to}`);
-        const counts = top.map(r => r.count);
-        const colors = top.map((_, i) => [C.error, C.warning, C.logic, C.accent, C.interactive, C.success][i % 6]);
-        destroyChart('transitions');
-        const ctx = document.getElementById('chart-transitions').getContext('2d');
-        chartInstances.transitions = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels,
-                datasets: [{
-                    label: 'Occurrences', data: counts,
-                    backgroundColor: colors.map(c => alpha(c, .72)), borderColor: colors,
-                    borderWidth: 2, borderRadius: 6, borderSkipped: false
-                }]
-            },
-            options: {
-                indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ` ${c.raw} transitions` } } },
-                scales: {
-                    x: { beginAtZero: true, grid: LIGHT_GRID, ticks: LIGHT_TICK },
-                    y: { grid: { display: false }, ticks: { ...LIGHT_TICK, font: { family: "'JetBrains Mono',monospace", size: 11 } } }
-                }
-            }
-        });
-    } catch (e) { console.error('Transitions:', e); }
-}
-
-/* ═══════════════════════════════════
-   SUMMARY STATS (top cards)
-   ═══════════════════════════════════ */
-
-async function loadSummary() {
-    try {
-        const [summary, quality] = await Promise.all([
-            fetch('/api/stats/summary').then(r => r.json()),
-            fetch('/api/stats/session-quality').then(r => r.json()),
-        ]);
-        if (summary.error) { showError(summary.error); return; }
-        setStat('stat-participants', summary.total_participants ?? '—');
-        setStat('stat-static', summary.static_participants ?? '—');
-        setStat('stat-interactive', summary.interactive_participants ?? '—');
-        setStat('stat-attempts', summary.total_attempts ?? '—');
-        setStat('stat-passrate', (summary.overall_pass_rate ?? '—') + '%');
-        if (!quality.error) setStat('stat-valid', `${quality.valid ?? 0} / ${quality.total ?? 0}`);
-    } catch (e) { showError('Cannot reach /api/stats/summary — is the server running?'); }
-}
-
-/* ═══════════════════════════════════
-   TAB SWITCHING
-   ═══════════════════════════════════ */
-
-document.querySelectorAll('.dash-tab').forEach(tab => {
-    tab.addEventListener('click', function () {
-        const target = this.dataset.tab;
-        document.querySelectorAll('.dash-tab').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-        this.classList.add('active');
-        const pane = document.getElementById('tab-' + target);
-        if (pane) pane.classList.add('active');
-        if (target === 'insights') loadInsights();
-        if (typeof lucide !== 'undefined') lucide.createIcons();
-    });
-});
-
-/* ═══════════════════════════════════
-   INIT & AUTO-REFRESH
-   ═══════════════════════════════════ */
 
 async function loadOverview() {
-    await loadSummary();
-    await Promise.allSettled([loadPassRate(), loadErrors(), loadAttempts(), loadLearningCurve()]);
-    setRefreshTime();
+  const data = await fetchJson('/api/stats/dashboard-overview');
+  if (data.error) throw new Error(data.error);
+  setStat('stat-participants', data.total_participants ?? 0);
+  setStat('stat-attempts', data.total_attempts ?? 0);
+  setStat('stat-control', data.control_group_size ?? 0);
+  setStat('stat-adaptive', data.adaptive_group_size ?? 0);
+  setStat('stat-passrate', `${Number(data.overall_pass_rate ?? 0).toFixed(1)}%`);
+  setStat(
+    'stat-avg-attempts-pass',
+    `${Number(data.avg_attempts_to_first_pass_control ?? 0).toFixed(2)} vs ${Number(data.avg_attempts_to_first_pass_adaptive ?? 0).toFixed(2)}`,
+  );
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
-    await loadOverview();
-    setInterval(loadOverview, 30_000);
+async function loadCoreResults() {
+  const core = await fetchJson('/api/stats/dashboard-core');
+  if (core.error) throw new Error(core.error);
 
-    const btn = document.getElementById('refresh-btn');
-    if (btn) {
-        btn.addEventListener('click', async () => {
-            btn.disabled = true;
-            btn.innerHTML = 'Refreshing…';
-            insightsLoaded = false;
-            const activeInsights = document.getElementById('tab-insights');
-            if (activeInsights?.classList.contains('active')) {
-                await Promise.all([loadOverview(), loadInsights()]);
-            } else {
-                await loadOverview();
-            }
-            btn.disabled = false;
-            btn.innerHTML = '<i data-lucide="refresh-cw"></i> Refresh';
-            if (typeof lucide !== 'undefined') lucide.createIcons();
-        });
+  drawBarChart('chart-pass-rate', 'passRate', core.pass_rate.labels, core.pass_rate.values, 'Pass Rate (%)', C.success);
+  drawBarChart('chart-attempts-first-pass', 'attemptsFirstPass', core.attempts_to_first_pass.labels, core.attempts_to_first_pass.values, 'Avg Attempts to First Pass', C.warning);
+  drawBarChart('chart-time-first-pass', 'timeFirstPass', core.time_to_first_pass.labels, core.time_to_first_pass.values, 'Seconds to First Pass', C.accent);
+  drawBarChart('chart-improvement-rate', 'improvementRate', core.improvement_rate.labels, core.improvement_rate.values, 'Improvement Rate', C.adaptive);
+  drawBarChart('chart-error-reduction', 'errorReduction', core.error_reduction_rate.labels, core.error_reduction_rate.values, 'Error Reduction Rate', C.control);
+}
+
+async function loadBehaviorResults() {
+  const behavior = await fetchJson('/api/stats/dashboard-behavior');
+  if (behavior.error) throw new Error(behavior.error);
+
+  drawPie('chart-errors', 'errors', behavior.error_distribution.labels, behavior.error_distribution.values);
+  drawBarChart('chart-topic-success', 'topicSuccess', behavior.topic_success.labels, behavior.topic_success.values, 'Topic Success (%)', C.success);
+  drawGroupedBar(
+    'chart-language-difficulty',
+    'languageDifficulty',
+    behavior.language_difficulty.labels,
+    'Pass Rate %',
+    behavior.language_difficulty.pass_rate,
+    'Syntax Error %',
+    behavior.language_difficulty.syntax_error_rate,
+  );
+}
+
+async function loadAdaptivityResults() {
+  const adapt = await fetchJson('/api/stats/dashboard-adaptivity');
+  if (adapt.error) throw new Error(adapt.error);
+
+  drawBarChart(
+    'chart-recommendation-effect',
+    'recommendationEffect',
+    adapt.recommendation_effectiveness.labels,
+    adapt.recommendation_effectiveness.values,
+    'Pass Rate by Recommendation Exposure',
+    C.success,
+  );
+  drawBarChart(
+    'chart-adaptive-actions',
+    'adaptiveActions',
+    adapt.adaptive_actions.labels,
+    adapt.adaptive_actions.values,
+    'Adaptive Actions Count',
+    C.adaptive,
+  );
+  drawBarChart(
+    'chart-recommendation-intensity',
+    'recommendationIntensity',
+    adapt.recommendation_intensity.labels,
+    adapt.recommendation_intensity.values,
+    'Recommendation Intensity Count',
+    C.warning,
+  );
+}
+
+async function loadRecommendedNextStep() {
+  const wrap = document.getElementById('next-step-card');
+  if (!wrap) return;
+  try {
+    const data = await fetchJson('/dashboard/recommended-next-step');
+    if (!data.success || !data.recommendation) {
+      wrap.innerHTML = '<p class="adaptive-empty">No recommendation available.</p>';
+      return;
     }
+    const rec = data.recommendation;
+    wrap.innerHTML = `
+      <div class="next-step-card">
+        <div class="next-step-card__type">${String(rec.type || 'recommendation')}</div>
+        <div class="next-step-card__title">${String((rec.topic || 'topic')).toUpperCase()} - ${String((rec.language || 'python')).toUpperCase()}</div>
+        <div class="next-step-card__message">${String(rec.message || '')}</div>
+      </div>
+    `;
+  } catch {
+    wrap.innerHTML = '<p class="adaptive-error">Unable to load recommendation.</p>';
+  }
+}
+
+async function loadDashboard() {
+  const loading = document.getElementById('dashboard-loading');
+  try {
+    hideError();
+    if (loading) loading.style.display = 'block';
+    await loadOverview();
+    await loadCoreResults();
+    await loadBehaviorResults();
+    await loadAdaptivityResults();
+    await loadRecommendedNextStep();
+    setRefreshTime();
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  } catch (err) {
+    showError(err.message || 'Failed to load dashboard data');
+  } finally {
+    if (loading) loading.style.display = 'none';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadDashboard();
+  const refreshBtn = document.getElementById('refresh-btn');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', async () => {
+      refreshBtn.disabled = true;
+      refreshBtn.textContent = 'Refreshing...';
+      await loadDashboard();
+      refreshBtn.disabled = false;
+      refreshBtn.innerHTML = '<i data-lucide="refresh-cw"></i> Refresh';
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    });
+  }
+  setInterval(() => {
+    if (document.visibilityState === 'visible') loadDashboard();
+  }, 30000);
 });

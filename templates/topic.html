@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Learning Topic — {{ topic.title }}{% endblock %}
+
+{% block content %}
+<main class="page">
+    <div class="container container--narrow">
+        <div class="card topic-hub-card">
+            <div class="card__header">
+                <div class="card__title">
+                    <span class="tag tag--primary">Learning Hub</span>
+                    <h2 class="topic-hub-title">{{ topic.title }}</h2>
+                </div>
+                <p class="card__header-hint">{{ topic.summary }}</p>
+                <p class="card__header-hint topic-hub-track">Language Track: <strong>{{ language_labels.get(selected_language, selected_language) }}</strong></p>
+            </div>
+            <div class="card__body">
+                <div class="explanation">
+                    <div class="explanation__label"><i data-lucide="video"></i> Concept Video</div>
+                    <div class="topic-video-frame">
+                        <iframe src="{{ topic.video_url }}" title="{{ topic.title }}" loading="lazy"
+                            class="topic-video-frame__embed" allowfullscreen></iframe>
+                    </div>
+                </div>
+
+                <div class="card__section topic-hub-section">
+                    <div class="exercise-desc">
+                        <div class="exercise-desc__label"><i data-lucide="info"></i> Syntax Support</div>
+                        <p>{{ topic.syntax_guide }}</p>
+                    </div>
+                </div>
+
+                <div class="card__section topic-hub-section">
+                    <div class="exercise-desc">
+                        <div class="exercise-desc__label"><i data-lucide="list-checks"></i> Linked Practice Exercises</div>
+                        <ul class="topic-linked-list">
+                            {% for ex in exercises %}
+                            <li>
+                                {{ ex.id|upper }} - {{ ex.title }}
+                                <span style="font-size:.8rem;color:var(--text-muted);">({{ language_labels.get(ex.language, ex.language) }})</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="topic-actions">
+                    <a href="{{ url_for('topic_quiz', topic_id=topic_id, lang=selected_language, return_mode=return_mode, ex=return_ex) }}" class="btn btn--primary">
+                        <i data-lucide="help-circle"></i> Take Diagnostic Quiz
+                    </a>
+                    <a href="{{ url_for(return_mode, lang=selected_language, ex=return_ex|int) }}" class="btn btn--secondary">
+                        <i data-lucide="arrow-left"></i> Back to Exercise
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+{% endblock %}

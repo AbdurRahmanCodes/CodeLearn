@@ -10,11 +10,13 @@ document.addEventListener('DOMContentLoaded', function () {
   let cmEditor = null;
 
   if (textarea) {
+    const lang = textarea.dataset.language || 'python';
+    const cmMode = lang === 'javascript' ? 'javascript' : 'python';
     // Wait a tick for CodeMirror CDN to load
     setTimeout(function () {
       if (typeof CodeMirror !== 'undefined') {
         cmEditor = CodeMirror.fromTextArea(textarea, {
-          mode: 'python',
+          mode: cmMode,
           theme: 'dracula',
           lineNumbers: true,
           indentUnit: 4,
@@ -33,6 +35,15 @@ document.addEventListener('DOMContentLoaded', function () {
           }
         });
         cmEditor.setSize(null, 260);
+
+        const resetBtn = document.getElementById('reset-btn');
+        if (resetBtn) {
+          resetBtn.addEventListener('click', function () {
+            const starterCode = textarea.dataset.starter || '';
+            cmEditor.setValue(starterCode);
+            cmEditor.focus();
+          });
+        }
       }
     }, 100);
   }
@@ -52,16 +63,6 @@ document.addEventListener('DOMContentLoaded', function () {
         runBtn.disabled = true;
         runBtn.innerHTML = '<span class="spinner"></span> Running…';
       }
-    });
-  }
-
-  /* ── Reset Button ── */
-  const resetBtn = document.getElementById('reset-btn');
-  if (resetBtn && cmEditor) {
-    resetBtn.addEventListener('click', function () {
-      const starterCode = textarea.dataset.starter || '';
-      cmEditor.setValue(starterCode);
-      cmEditor.focus();
     });
   }
 

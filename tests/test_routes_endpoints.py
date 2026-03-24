@@ -1,4 +1,5 @@
 import types
+from datetime import datetime, timezone
 
 import pytest
 
@@ -36,9 +37,15 @@ class FakeJourney:
         }
 
 
-class FakeFindResult(list):
+class FakeFindResult:
+    def __init__(self, rows):
+        self._rows = list(rows)
+
     def sort(self, *_args, **_kwargs):
         return self
+
+    def __iter__(self):
+        return iter(self._rows)
 
 
 class FakeCollection:
@@ -78,7 +85,16 @@ class FakeMongo:
             attempts=FakeCollection([
                 {"session_id": "sess", "exercise_id": 1, "attempt_number": 1, "result": "pass"},
             ]),
-            quiz_attempts=FakeCollection([]),
+            quiz_attempts=FakeCollection([
+                {
+                    "session_id": "sess",
+                    "topic": "variables",
+                    "score": 3,
+                    "total_questions": 3,
+                    "score_pct": 100.0,
+                    "timestamp": datetime.now(timezone.utc),
+                }
+            ]),
             recommendations_log=FakeCollection([]),
         )
 
@@ -89,9 +105,9 @@ def app(monkeypatch):
     import app.routes.exercises as exercise_routes
     import app.routes.dashboard as dashboard_routes
 
-    monkeypatch.setattr(auth_routes, "LearningJourney", FakeJourney)
-    monkeypatch.setattr(exercise_routes, "LearningJourney", FakeJourney)
-    monkeypatch.setattr(dashboard_routes, "LearningJourney", FakeJourney)
+    monkeypatch.setattr(auth_routes, "LearningEngine", FakeJourney)
+    monkeypatch.setattr(exercise_routes, "LearningEngine", FakeJourney)
+    monkeypatch.setattr(dashboard_routes, "LearningEngine", FakeJourney)
 
     fake_mongo = FakeMongo()
     monkeypatch.setattr(exercise_routes, "mongo", fake_mongo)
@@ -142,3 +158,54 @@ def test_dashboard_user_success(client):
     body = response.get_json()
     assert body["success"] is True
     assert "dashboard" in body
+
+
+def test_dashboard_quizzes_supports_new_quiz_fields(client):
+    with client.session_transaction() as sess:
+        sess["session_id"] = "sess"
+
+    response = client.get("/dashboard/quizzes")
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["success"] is True
+    assert "variables" in body["quizzes"]
+    latest = body["quizzes"]["variables"][0]
+    assert latest["total"] == 3
+    assert latest["percentage"] == 100.0
+
+
+def test_dashboard_weak_topics_endpoint(client):
+    with client.session_transaction() as sess:
+        sess["session_id"] = "sess"
+
+    response = client.get('/dashboard/weak-topics')
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body['success'] is True
+    assert isinstance(body['weak_topics'], list)
+
+
+def test_dashboard_learning_path_endpoint(client):
+    with client.session_transaction() as sess:
+        sess["session_id"] = "sess"
+        sess["selected_language"] = "python"
+
+    response = client.get('/dashboard/learning-path')
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body['success'] is True
+    assert body['language'] == 'python'
+    assert isinstance(body['path'], list)
+
+
+def test_dashboard_recommended_next_step_endpoint(client):
+    with client.session_transaction() as sess:
+        sess["session_id"] = "sess"
+        sess["selected_language"] = "python"
+
+    response = client.get('/dashboard/recommended-next-step')
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body['success'] is True
+    assert 'recommendation' in body
+    assert 'type' in body['recommendation']

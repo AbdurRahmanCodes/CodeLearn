@@ -5,9 +5,8 @@ Tests the central orchestrator
 
 import pytest
 import uuid
-from datetime import datetime
 from app import create_app, mongo
-from app.services import LearningJourney
+from app.services.learning_engine import LearningEngine
 
 
 @pytest.fixture
@@ -37,22 +36,23 @@ class TestLearningJourneyCreation:
     def test_journey_creation(self, app, test_session_id):
         """Test: Can create a new LearningJourney"""
         with app.app_context():
-            journey = LearningJourney(test_session_id)
+            journey = LearningEngine(test_session_id)
             assert journey.session_id == test_session_id
             assert journey.context is not None
     
     def test_random_arm_assignment(self, app, test_session_id):
         """Test: Experiment arm is randomly assigned A or B"""
         with app.app_context():
-            journey = LearningJourney(test_session_id)
-            assert journey.context['experiment_arm'] in ['A_control', 'B_adaptive']
+            journey = LearningEngine(test_session_id)
+            assert journey.context['experiment_arm'] in ['control', 'adaptive']
     
     def test_session_persists_in_database(self, app, test_session_id):
         """Test: Session context is saved to MongoDB"""
         with app.app_context():
-            journey = LearningJourney(test_session_id)
+            journey = LearningEngine(test_session_id)
             
             # Query database directly
+            assert mongo.db is not None
             doc = mongo.db.session_context.find_one({'session_id': test_session_id})
             assert doc is not None
             assert doc['session_id'] == test_session_id
@@ -64,7 +64,7 @@ class TestUserMode:
     def test_set_static_mode(self, app, test_session_id):
         """Test: Can set mode to 'static'"""
         with app.app_context():
-            journey = LearningJourney(test_session_id)
+            journey = LearningEngine(test_session_id)
             result = journey.set_user_mode('static')
             assert result is True
             assert journey.context['user_mode'] == 'static'
@@ -72,7 +72,7 @@ class TestUserMode:
     def test_set_interactive_mode(self, app, test_session_id):
         """Test: Can set mode to 'interactive'"""
         with app.app_context():
-            journey = LearningJourney(test_session_id)
+            journey = LearningEngine(test_session_id)
             result = journey.set_user_mode('interactive')
             assert result is True
             assert journey.context['user_mode'] == 'interactive'
@@ -80,7 +80,7 @@ class TestUserMode:
     def test_invalid_mode_rejected(self, app, test_session_id):
         """Test: Invalid modes are rejected"""
         with app.app_context():
-            journey = LearningJourney(test_session_id)
+            journey = LearningEngine(test_session_id)
             result = journey.set_user_mode('invalid_mode')
             assert result is False
 
@@ -91,7 +91,7 @@ class TestAttemptSubmission:
     def test_submit_attempt(self, app, test_session_id):
         """Test: Can submit an attempt"""
         with app.app_context():
-            journey = LearningJourney(test_session_id)
+            journey = LearningEngine(test_session_id)
             journey.set_user_mode('interactive')
             
             result = journey.submit_attempt(
@@ -107,7 +107,7 @@ class TestAttemptSubmission:
     def test_attempt_count_increments(self, app, test_session_id):
         """Test: Attempt numbers increment correctly"""
         with app.app_context():
-            journey = LearningJourney(test_session_id)
+            journey = LearningEngine(test_session_id)
             journey.set_user_mode('interactive')
             
             # Submit attempt 1
@@ -125,7 +125,7 @@ class TestDashboardData:
     def test_get_dashboard_data(self, app, test_session_id):
         """Test: Can retrieve dashboard data"""
         with app.app_context():
-            journey = LearningJourney(test_session_id)
+            journey = LearningEngine(test_session_id)
             journey.set_user_mode('interactive')
             
             data = journey.get_user_dashboard_data()
